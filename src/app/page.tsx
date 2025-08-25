@@ -326,7 +326,7 @@ export default function TierList() {
                 />
               </div>
               <div 
-                className="flex-1 min-h-20 border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 flex flex-wrap gap-2 items-start"
+                className="flex-1 min-h-20 border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-1 flex flex-wrap gap-1 items-start"
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, tier)}
               >
@@ -363,7 +363,7 @@ export default function TierList() {
                 Items
               </div>
               <div 
-                className="flex-1 min-h-20 border-2 border-dashed border-gray-400 dark:border-gray-500 bg-gray-50 dark:bg-gray-700 p-4 flex flex-wrap gap-2 items-start relative"
+                className="flex-1 min-h-20 border-2 border-dashed border-gray-400 dark:border-gray-500 bg-gray-50 dark:bg-gray-700 p-2 flex flex-wrap gap-1 items-start relative"
                 onDragOver={handleItemsAreaDragOver}
                 onDrop={handleItemsAreaDrop}
               >
