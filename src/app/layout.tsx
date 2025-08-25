@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Quick Tier List",
   description: "Create tier lists by uploading and ranking images",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
