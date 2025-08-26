@@ -47,6 +47,8 @@ export default function TierList() {
     D: 'D'
   })
   const [isStreamerMode, setIsStreamerMode] = useState(false)
+  const [tableWidth, setTableWidth] = useState(1152) // Default to max-w-6xl (72rem * 16px)
+  const [isResizing, setIsResizing] = useState(false)
 
   useEffect(() => {
     const savedTierData = localStorage.getItem('tierListData')
@@ -62,6 +64,11 @@ export default function TierList() {
     const savedStreamerMode = localStorage.getItem('isStreamerMode')
     if (savedStreamerMode) {
       setIsStreamerMode(JSON.parse(savedStreamerMode))
+    }
+
+    const savedTableWidth = localStorage.getItem('tableWidth')
+    if (savedTableWidth) {
+      setTableWidth(JSON.parse(savedTableWidth))
     }
   }, [])
 
@@ -92,6 +99,10 @@ export default function TierList() {
   useEffect(() => {
     localStorage.setItem('isStreamerMode', JSON.stringify(isStreamerMode))
   }, [isStreamerMode])
+
+  useEffect(() => {
+    localStorage.setItem('tableWidth', JSON.stringify(tableWidth))
+  }, [tableWidth])
 
 
   const compressImage = (file: File, maxWidth = 150, maxHeight = 150, quality = 0.7): Promise<string> => {
@@ -255,8 +266,8 @@ export default function TierList() {
     })
   }
 
-  const clearAllImages = () => {
-    if (window.confirm('Are you sure you want to delete all images? This cannot be undone.')) {
+  const resetEverything = () => {
+    if (window.confirm('Are you sure you want to reset everything? This will delete all images and reset the table width. This cannot be undone.')) {
       setTierData({
         S: [],
         A: [],
@@ -265,6 +276,7 @@ export default function TierList() {
         D: [],
         unranked: []
       })
+      setTableWidth(1152) // Reset to default width
     }
   }
 
@@ -302,9 +314,38 @@ export default function TierList() {
     return Math.max(80, Math.min(144, 80 + (maxLength - 1) * 8)) // 80px base, max 144px (18 chars * 8px)
   }
 
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const containerRect = document.querySelector('.tier-container')?.getBoundingClientRect()
+      if (!containerRect) return
+      
+      const newWidth = e.clientX - containerRect.left
+      const minWidth = 400
+      const maxWidth = window.innerWidth - 32 // Account for padding, but let CSS handle the final constraint
+      
+      const constrainedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
+      setTableWidth(constrainedWidth)
+    }
+    
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
-      <div className={`max-w-6xl ${isStreamerMode ? 'mr-auto ml-4' : 'mx-auto'}`}>
+      <div 
+        className={`tier-container relative max-w-full ${isStreamerMode ? 'mr-auto ml-4' : 'mx-auto'}`}
+        style={{ width: `${tableWidth}px` }}
+      >
         <h1 className={`text-4xl font-bold text-gray-800 dark:text-gray-100 mb-8 ${isStreamerMode ? 'text-left' : 'text-center'}`}>
           Quick Tier List
         </h1>
@@ -443,10 +484,10 @@ export default function TierList() {
             Reset Rankings
           </button>
           <button
-            onClick={clearAllImages}
+            onClick={resetEverything}
             className="px-4 py-2 bg-red-500 dark:bg-red-600 text-white rounded hover:bg-red-600 dark:hover:bg-red-700 transition-colors font-medium"
           >
-            Clear All Images
+            Reset Everything
           </button>
           <button
             onClick={() => setIsStreamerMode(!isStreamerMode)}
@@ -454,6 +495,13 @@ export default function TierList() {
           >
             {isStreamerMode ? 'Exit Streamer Mode' : 'Streamer Mode'}
           </button>
+        </div>
+        
+        <div
+          className={`absolute top-0 right-0 bottom-0 w-1 cursor-col-resize group ${isResizing ? 'bg-blue-500' : 'bg-transparent hover:bg-gray-400 dark:hover:bg-gray-500'} transition-colors`}
+          onMouseDown={handleResizeStart}
+        >
+          <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-500 group-hover:opacity-20 transition-all"></div>
         </div>
       </div>
     </div>
