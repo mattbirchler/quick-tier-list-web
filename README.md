@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quick Tier List
 
-## Getting Started
+A simple, fast tier list maker. No sign up. No server. Just drag and drop.
 
-First, run the development server:
+## Features
 
+- **Drag & Drop** - Upload images by dropping them, then drag to rank
+- **Editable Tiers** - Customize S/A/B/C/D labels (click to edit)
+- **Persistent** - All data saved locally in your browser
+- **Dark Mode** - Automatically follows your system preference
+- **Streamer Mode** - Left-aligned layout for webcam overlays
+- **Resizable** - Drag the right edge to adjust width
+
+## Usage
+
+Just open `index.html` in your browser. That's it.
+
+Or use any web server:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+python -m http.server 8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deployment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Drop the files on any static host:
+- GitHub Pages
+- Netlify
+- Vercel
+- Any web server
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+No build step required.
 
-## Learn More
+## Files
 
-To learn more about Next.js, take a look at the following resources:
+```
+index.html   - Page structure
+styles.css   - Styling (CSS variables, dark mode)
+script.js    - All functionality
+favicon.svg  - Icon
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

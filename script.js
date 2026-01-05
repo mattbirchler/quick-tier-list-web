@@ -1,0 +1,582 @@
+/**
+ * Quick Tier List - Main JavaScript
+ * A simple, client-side tier list maker
+ */
+
+// ========================================
+// State
+// ========================================
+
+const state = {
+  tierData: {
+    S: [],
+    A: [],
+    B: [],
+    C: [],
+    D: [],
+    unranked: []
+  },
+  tierNames: { S: 'S', A: 'A', B: 'B', C: 'C', D: 'D' },
+  isStreamerMode: false,
+  tableWidth: 1152,
+  draggedItem: null,
+  draggedFromTier: null
+};
+
+// ========================================
+// DOM References
+// ========================================
+
+const elements = {
+  container: null,
+  tierTable: null,
+  itemsGrid: null,
+  itemsDropZone: null,
+  dropPlaceholder: null,
+  fileInput: null,
+  uploadProgress: null,
+  progressCount: null,
+  progressFill: null,
+  sortBtn: null,
+  shuffleBtn: null,
+  resetRankingsBtn: null,
+  resetEverythingBtn: null,
+  streamerModeBtn: null,
+  resizeHandle: null
+};
+
+// ========================================
+// Initialization
+// ========================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  cacheElements();
+  loadFromStorage();
+  render();
+  attachEventListeners();
+});
+
+function cacheElements() {
+  elements.container = document.getElementById('tierContainer');
+  elements.tierTable = document.querySelector('.tier-table');
+  elements.itemsGrid = document.getElementById('itemsGrid');
+  elements.itemsDropZone = document.getElementById('itemsDropZone');
+  elements.dropPlaceholder = document.getElementById('dropPlaceholder');
+  elements.fileInput = document.getElementById('fileInput');
+  elements.uploadProgress = document.getElementById('uploadProgress');
+  elements.progressCount = document.getElementById('progressCount');
+  elements.progressFill = document.getElementById('progressFill');
+  elements.sortBtn = document.getElementById('sortBtn');
+  elements.shuffleBtn = document.getElementById('shuffleBtn');
+  elements.resetRankingsBtn = document.getElementById('resetRankingsBtn');
+  elements.resetEverythingBtn = document.getElementById('resetEverythingBtn');
+  elements.streamerModeBtn = document.getElementById('streamerModeBtn');
+  elements.resizeHandle = document.getElementById('resizeHandle');
+}
+
+function loadFromStorage() {
+  try {
+    const savedTierData = localStorage.getItem('tierListData');
+    if (savedTierData) {
+      state.tierData = JSON.parse(savedTierData);
+    }
+
+    const savedTierNames = localStorage.getItem('tierNames');
+    if (savedTierNames) {
+      state.tierNames = JSON.parse(savedTierNames);
+    }
+
+    const savedStreamerMode = localStorage.getItem('isStreamerMode');
+    if (savedStreamerMode) {
+      state.isStreamerMode = JSON.parse(savedStreamerMode);
+    }
+
+    const savedTableWidth = localStorage.getItem('tableWidth');
+    if (savedTableWidth) {
+      state.tableWidth = JSON.parse(savedTableWidth);
+    }
+  } catch (error) {
+    console.error('Error loading from localStorage:', error);
+  }
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem('tierListData', JSON.stringify(state.tierData));
+  } catch (error) {
+    if (error.name === 'QuotaExceededError') {
+      console.warn('LocalStorage quota exceeded. Clearing and retrying...');
+      try {
+        localStorage.clear();
+        localStorage.setItem('tierListData', JSON.stringify(state.tierData));
+      } catch (retryError) {
+        console.error('Failed to save even after clearing:', retryError);
+        alert('Storage limit exceeded. Consider using fewer or smaller images.');
+      }
+    }
+  }
+}
+
+function saveTierNames() {
+  localStorage.setItem('tierNames', JSON.stringify(state.tierNames));
+}
+
+function saveStreamerMode() {
+  localStorage.setItem('isStreamerMode', JSON.stringify(state.isStreamerMode));
+}
+
+function saveTableWidth() {
+  localStorage.setItem('tableWidth', JSON.stringify(state.tableWidth));
+}
+
+// ========================================
+// Rendering
+// ========================================
+
+function render() {
+  renderTiers();
+  renderItems();
+  updateContainerStyles();
+  updateButtonStates();
+}
+
+function renderTiers() {
+  const tiers = ['S', 'A', 'B', 'C', 'D'];
+
+  elements.tierTable.innerHTML = tiers.map(tier => `
+    <div class="tier-row" data-tier="${tier}">
+      <div class="tier-label tier-${tier.toLowerCase()}">
+        <input
+          type="text"
+          value="${state.tierNames[tier]}"
+          maxlength="18"
+          data-tier="${tier}"
+          aria-label="Tier ${tier} name"
+        >
+      </div>
+      <div class="tier-content" data-tier="${tier}">
+        ${state.tierData[tier].map(item => createImageItemHTML(item, tier)).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  // Attach tier name input listeners
+  elements.tierTable.querySelectorAll('.tier-label input').forEach(input => {
+    input.addEventListener('input', handleTierNameChange);
+  });
+
+  // Attach drag/drop listeners to tier contents
+  elements.tierTable.querySelectorAll('.tier-content').forEach(content => {
+    content.addEventListener('dragover', handleDragOver);
+    content.addEventListener('dragleave', handleDragLeave);
+    content.addEventListener('drop', handleDrop);
+  });
+
+  // Attach image item listeners
+  attachImageItemListeners(elements.tierTable);
+
+  // Update tier label widths
+  updateTierLabelWidths();
+}
+
+function renderItems() {
+  elements.itemsGrid.innerHTML = state.tierData.unranked
+    .map(item => createImageItemHTML(item, 'unranked'))
+    .join('');
+
+  // Show/hide placeholder
+  const hasItems = state.tierData.unranked.length > 0;
+  elements.dropPlaceholder.classList.toggle('hidden', hasItems);
+
+  // Attach image item listeners
+  attachImageItemListeners(elements.itemsGrid);
+}
+
+function createImageItemHTML(item, tier) {
+  return `
+    <div class="image-item" draggable="true" data-id="${item.id}" data-tier="${tier}">
+      <img src="${item.src}" alt="${item.name}">
+      <button class="delete-btn" data-id="${item.id}" data-tier="${tier}" aria-label="Remove ${item.name}">×</button>
+    </div>
+  `;
+}
+
+function attachImageItemListeners(container) {
+  container.querySelectorAll('.image-item').forEach(item => {
+    item.addEventListener('dragstart', handleImageDragStart);
+    item.addEventListener('dragend', handleImageDragEnd);
+  });
+
+  container.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', handleDeleteImage);
+  });
+}
+
+function updateContainerStyles() {
+  elements.container.style.width = `${state.tableWidth}px`;
+  elements.container.classList.toggle('streamer-mode', state.isStreamerMode);
+  elements.streamerModeBtn.textContent = state.isStreamerMode ? 'Exit Streamer Mode' : 'Streamer Mode';
+}
+
+function updateButtonStates() {
+  const hasUnrankedItems = state.tierData.unranked.length > 0;
+  elements.sortBtn.disabled = !hasUnrankedItems;
+  elements.shuffleBtn.disabled = !hasUnrankedItems;
+}
+
+function updateTierLabelWidths() {
+  const maxLength = Math.max(...Object.values(state.tierNames).map(n => n.length));
+  const width = Math.max(80, Math.min(144, 80 + (maxLength - 1) * 8));
+
+  document.documentElement.style.setProperty('--tier-label-width', `${width}px`);
+}
+
+// ========================================
+// Event Listeners
+// ========================================
+
+function attachEventListeners() {
+  // File input
+  elements.fileInput.addEventListener('change', handleFileSelect);
+
+  // Drop zone click
+  elements.itemsDropZone.addEventListener('click', (e) => {
+    if (e.target === elements.itemsDropZone || e.target === elements.dropPlaceholder || e.target.closest('.drop-placeholder')) {
+      elements.fileInput.click();
+    }
+  });
+
+  // Drop zone drag/drop for files
+  elements.itemsDropZone.addEventListener('dragover', handleItemsAreaDragOver);
+  elements.itemsDropZone.addEventListener('dragleave', handleItemsAreaDragLeave);
+  elements.itemsDropZone.addEventListener('drop', handleItemsAreaDrop);
+
+  // Action buttons
+  elements.sortBtn.addEventListener('click', sortItemsAlphabetically);
+  elements.shuffleBtn.addEventListener('click', shuffleItems);
+  elements.resetRankingsBtn.addEventListener('click', resetRankings);
+  elements.resetEverythingBtn.addEventListener('click', resetEverything);
+  elements.streamerModeBtn.addEventListener('click', toggleStreamerMode);
+
+  // Resize handle
+  elements.resizeHandle.addEventListener('mousedown', handleResizeStart);
+
+  // Prevent default drag behavior on document
+  document.addEventListener('dragover', (e) => e.preventDefault());
+  document.addEventListener('drop', (e) => e.preventDefault());
+}
+
+// ========================================
+// Tier Name Handling
+// ========================================
+
+function handleTierNameChange(e) {
+  const tier = e.target.dataset.tier;
+  state.tierNames[tier] = e.target.value;
+  saveTierNames();
+  updateTierLabelWidths();
+}
+
+// ========================================
+// Image Drag & Drop
+// ========================================
+
+function handleImageDragStart(e) {
+  const item = e.target.closest('.image-item');
+  state.draggedItem = item.dataset.id;
+  state.draggedFromTier = item.dataset.tier;
+  item.classList.add('dragging');
+
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', item.dataset.id);
+}
+
+function handleImageDragEnd(e) {
+  const item = e.target.closest('.image-item');
+  if (item) {
+    item.classList.remove('dragging');
+  }
+  state.draggedItem = null;
+  state.draggedFromTier = null;
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+
+  if (!state.draggedItem) return;
+
+  const toTier = e.currentTarget.dataset.tier;
+  const fromTier = state.draggedFromTier;
+
+  if (fromTier === toTier) return;
+
+  moveItem(state.draggedItem, fromTier, toTier);
+}
+
+function handleItemsAreaDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  elements.itemsDropZone.classList.add('drag-over');
+}
+
+function handleItemsAreaDragLeave(e) {
+  // Only remove class if leaving the drop zone entirely
+  if (!elements.itemsDropZone.contains(e.relatedTarget)) {
+    elements.itemsDropZone.classList.remove('drag-over');
+  }
+}
+
+function handleItemsAreaDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  elements.itemsDropZone.classList.remove('drag-over');
+
+  // Check if dropping an existing item
+  if (state.draggedItem) {
+    moveItem(state.draggedItem, state.draggedFromTier, 'unranked');
+    return;
+  }
+
+  // Handle file drops
+  const files = e.dataTransfer.files;
+  if (files && files.length > 0) {
+    processFiles(files);
+  }
+}
+
+function moveItem(itemId, fromTier, toTier) {
+  const itemIndex = state.tierData[fromTier].findIndex(img => img.id === itemId);
+  if (itemIndex === -1) return;
+
+  const [item] = state.tierData[fromTier].splice(itemIndex, 1);
+  state.tierData[toTier].push(item);
+
+  saveToStorage();
+  render();
+}
+
+// ========================================
+// Delete Image
+// ========================================
+
+function handleDeleteImage(e) {
+  e.stopPropagation();
+  const btn = e.target;
+  const id = btn.dataset.id;
+  const tier = btn.dataset.tier;
+
+  state.tierData[tier] = state.tierData[tier].filter(img => img.id !== id);
+  saveToStorage();
+  render();
+}
+
+// ========================================
+// File Upload
+// ========================================
+
+function handleFileSelect(e) {
+  const files = e.target.files;
+  if (files && files.length > 0) {
+    processFiles(files);
+  }
+  e.target.value = '';
+}
+
+async function processFiles(files) {
+  const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+  if (imageFiles.length === 0) return;
+
+  const maxFileSize = 5 * 1024 * 1024; // 5MB
+
+  elements.uploadProgress.hidden = false;
+  elements.progressCount.textContent = `0 / ${imageFiles.length}`;
+  elements.progressFill.style.width = '0%';
+
+  for (let i = 0; i < imageFiles.length; i++) {
+    const file = imageFiles[i];
+
+    if (file.size > maxFileSize) {
+      alert(`File "${file.name}" is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 5MB.`);
+      continue;
+    }
+
+    try {
+      const compressedSrc = await compressImage(file);
+      const newImage = {
+        id: Date.now().toString() + Math.random().toString() + i.toString(),
+        src: compressedSrc,
+        name: file.name
+      };
+
+      state.tierData.unranked.push(newImage);
+
+      // Update progress
+      elements.progressCount.textContent = `${i + 1} / ${imageFiles.length}`;
+      elements.progressFill.style.width = `${((i + 1) / imageFiles.length) * 100}%`;
+
+      // Small delay to prevent quota issues
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('Error processing image:', file.name, error);
+    }
+  }
+
+  saveToStorage();
+  elements.uploadProgress.hidden = true;
+  render();
+}
+
+function compressImage(file, maxWidth = 150, maxHeight = 150, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // Background color based on color scheme
+      const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      ctx.fillStyle = isDarkMode ? '#1e293b' : '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// ========================================
+// Item Actions
+// ========================================
+
+function sortItemsAlphabetically() {
+  state.tierData.unranked.sort((a, b) => a.name.localeCompare(b.name));
+  saveToStorage();
+  render();
+}
+
+function shuffleItems() {
+  const items = state.tierData.unranked;
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  saveToStorage();
+  render();
+}
+
+// ========================================
+// Reset Actions
+// ========================================
+
+function resetRankings() {
+  const allItems = [
+    ...state.tierData.S,
+    ...state.tierData.A,
+    ...state.tierData.B,
+    ...state.tierData.C,
+    ...state.tierData.D,
+    ...state.tierData.unranked
+  ];
+
+  state.tierData = {
+    S: [],
+    A: [],
+    B: [],
+    C: [],
+    D: [],
+    unranked: allItems
+  };
+
+  saveToStorage();
+  render();
+}
+
+function resetEverything() {
+  if (!confirm('Are you sure you want to reset everything? This will delete all images and reset the table width. This cannot be undone.')) {
+    return;
+  }
+
+  state.tierData = {
+    S: [],
+    A: [],
+    B: [],
+    C: [],
+    D: [],
+    unranked: []
+  };
+  state.tableWidth = 1152;
+
+  saveToStorage();
+  saveTableWidth();
+  render();
+}
+
+// ========================================
+// Streamer Mode
+// ========================================
+
+function toggleStreamerMode() {
+  state.isStreamerMode = !state.isStreamerMode;
+  saveStreamerMode();
+  updateContainerStyles();
+}
+
+// ========================================
+// Resize Handling
+// ========================================
+
+function handleResizeStart(e) {
+  e.preventDefault();
+  elements.resizeHandle.classList.add('resizing');
+
+  const handleMouseMove = (e) => {
+    const containerRect = elements.container.getBoundingClientRect();
+    const newWidth = e.clientX - containerRect.left;
+    const minWidth = 400;
+    const maxWidth = window.innerWidth - 48;
+
+    state.tableWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+    elements.container.style.width = `${state.tableWidth}px`;
+  };
+
+  const handleMouseUp = () => {
+    elements.resizeHandle.classList.remove('resizing');
+    saveTableWidth();
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+}

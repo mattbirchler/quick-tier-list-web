@@ -1,86 +1,61 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-This is a **Tier List Maker** - a client-side web application built with Next.js, React, TypeScript, and Tailwind CSS. The app allows users to create tier lists by uploading images and dragging them into ranked tiers (S, A, B, C, D). All data is stored locally in the browser's localStorage with no server backend.
+**Quick Tier List** - A simple, client-side tier list maker built with vanilla HTML, CSS, and JavaScript. No frameworks, no build step, no dependencies. Just open `index.html` in a browser.
 
-## Development Commands
+## Files
 
-- `npm run dev` - Start development server with Turbo (runs on http://localhost:3000)
-- `npm run build` - Build production version with Turbo
-- `npm start` - Start production server
+- `index.html` - Main HTML structure
+- `styles.css` - All styling with CSS variables and dark mode support
+- `script.js` - All functionality (drag-drop, localStorage, image compression)
+- `favicon.svg` / `favicon.png` - Site icons
 
-## Core Architecture
+## Development
 
-### Single-Page Application Structure
-The entire application is contained in `src/app/page.tsx` as a single React component. This is intentional - the app is simple enough to not require component splitting.
+No build step required. To develop:
 
-### Key Data Structures
+1. Open `index.html` in a browser
+2. Edit files and refresh
 
-```typescript
-interface ImageItem {
-  id: string    // Unique identifier
-  src: string   // Base64 data URL of compressed image
-  name: string  // Original filename
-}
-
-interface TierData {
-  S: ImageItem[]
-  A: ImageItem[]  
-  B: ImageItem[]
-  C: ImageItem[]
-  D: ImageItem[]
-  unranked: ImageItem[]  // Drop zone for uploaded images
-}
+For live reload, use any simple HTTP server:
+```bash
+python -m http.server 8000
+# or
+npx serve
 ```
 
+## Architecture
+
 ### State Management
-All state is managed via React hooks:
-- `tierData` - Main data structure containing all images organized by tier
-- `tierNames` - Customizable tier labels (default: S, A, B, C, D)
-- `draggedItem` - Tracks currently dragged image for tier-to-tier movement
-- `isUploading` - Upload progress state
-- `isStreamerMode` - Layout toggle for streaming (left-aligned vs centered)
+All state is stored in a single `state` object in `script.js`:
+- `tierData` - Images organized by tier (S, A, B, C, D, unranked)
+- `tierNames` - Customizable tier labels
+- `isStreamerMode` - Layout toggle
+- `tableWidth` - Resizable container width
 
 ### Data Persistence
-Three localStorage keys are used:
-- `tierListData` - Main tier data structure
+Four localStorage keys:
+- `tierListData` - Main tier data
 - `tierNames` - Custom tier names
 - `isStreamerMode` - Layout preference
+- `tableWidth` - Saved width
 
-### Image Processing Pipeline
-1. **File Upload** - Users drop images into the "Items" area
-2. **Compression** - Images are resized to 150x150px and compressed to JPEG (70% quality)
-3. **Background Color** - White background for light mode, gray-800 (#1F2937) for dark mode
-4. **Storage** - Converted to base64 data URLs and stored in localStorage
+### Image Processing
+Images are compressed to 150x150px JPEG at 70% quality and stored as base64 data URLs in localStorage.
 
-### Dark Mode Implementation
-Uses Tailwind's `dark:` prefix classes that respond to `prefers-color-scheme: dark`. No JavaScript theme switching - relies entirely on system preference.
-
-### Drag and Drop System
-- **Image Movement** - Drag images between tiers using React DragEvent handlers
-- **File Upload** - Drop image files directly into the "Items" area
-- **Conflict Prevention** - Uses `stopPropagation()` to prevent file drops from interfering with image movement
+### CSS Variables
+All colors, sizes, and shadows are defined as CSS variables in `:root` for easy theming. Dark mode is handled via `@media (prefers-color-scheme: dark)`.
 
 ## Key Features
 
-### Dynamic Tier Sizing
-Tier labels can be customized up to 18 characters. The `getMaxTierWidth()` function calculates the width needed based on the longest tier name, ensuring all tiers maintain consistent alignment.
-
-### Streamer Mode
-Toggle between centered layout (normal) and left-aligned layout (streamer mode) to accommodate webcam overlays during streaming.
-
-### Performance Optimizations
-- Sequential image processing with 100ms delays to prevent localStorage quota errors
-- Error handling for localStorage quota exceeded scenarios
-- Progress indicators for batch uploads
-
-## Styling Approach
-
-Uses Tailwind CSS with:
-- Responsive design patterns
-- Dark mode variants throughout
-- Color-coded tiers (S=red, A=orange, B=yellow, C=green, D=blue)
-- Hover states and transitions for interactive elements
+- Drag and drop images between tiers
+- Drop files directly to upload
+- Editable tier names (max 18 chars)
+- Sort/shuffle unranked items
+- Resizable container width
+- Streamer mode (left-aligned layout)
+- Dark mode (follows system preference)
+- All data stored locally in browser
