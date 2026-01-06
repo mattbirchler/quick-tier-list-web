@@ -728,7 +728,7 @@ async function exportAsImage() {
   };
 
   // Settings
-  const scale = 3; // 3x resolution for crisp export
+  const scale = 6; // 6x resolution for crisp export
   const padding = 16;
   const tierLabelWidth = 80;
   const imageSize = 64;
@@ -745,7 +745,7 @@ async function exportAsImage() {
   const totalWidth = tierLabelWidth + contentWidth + padding * 2;
   const totalHeight = tiers.length * (rowHeight + rowGap) + padding * 2 - rowGap;
 
-  // Create canvas at 3x resolution
+  // Create canvas at 6x resolution
   const canvas = document.createElement('canvas');
   canvas.width = totalWidth * scale;
   canvas.height = totalHeight * scale;
