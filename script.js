@@ -786,12 +786,21 @@ async function exportAsImage() {
     ctx.roundRect(x, y, tierLabelWidth, rowHeight, [8, 0, 0, 8]);
     ctx.fill();
 
-    // Draw tier label text
+    // Draw tier label text (scale to fit)
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(state.tierNames[tier], x + tierLabelWidth / 2, y + rowHeight / 2);
+    const labelText = state.tierNames[tier];
+    const maxLabelWidth = tierLabelWidth - 12; // padding on sides
+    let fontSize = 18;
+    ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+
+    // Scale down font if text is too wide
+    while (ctx.measureText(labelText).width > maxLabelWidth && fontSize > 8) {
+      fontSize--;
+      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    }
+    ctx.fillText(labelText, x + tierLabelWidth / 2, y + rowHeight / 2);
 
     // Draw content background
     ctx.fillStyle = isDarkMode ? '#1e293b' : '#ffffff';
@@ -813,12 +822,27 @@ async function exportAsImage() {
     for (const item of state.tierData[tier]) {
       const img = imageCache.get(item.src);
       if (img && img.complete && img.naturalWidth > 0) {
-        // Draw rounded image
+        // Draw rounded image with "cover" behavior (maintain aspect ratio)
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(imgX, imgY, imageSize, imageSize, 6);
         ctx.clip();
-        ctx.drawImage(img, imgX, imgY, imageSize, imageSize);
+
+        // Calculate cover dimensions
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        let srcX = 0, srcY = 0, srcW = img.naturalWidth, srcH = img.naturalHeight;
+
+        if (imgAspect > 1) {
+          // Image is wider - crop sides
+          srcW = img.naturalHeight;
+          srcX = (img.naturalWidth - srcW) / 2;
+        } else if (imgAspect < 1) {
+          // Image is taller - crop top/bottom
+          srcH = img.naturalWidth;
+          srcY = (img.naturalHeight - srcH) / 2;
+        }
+
+        ctx.drawImage(img, srcX, srcY, srcW, srcH, imgX, imgY, imageSize, imageSize);
         ctx.restore();
       }
       imgX += imageSize + imageGap;
