@@ -478,6 +478,15 @@ header h1 {
   background: var(--danger-hover);
 }
 
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #16a34a;
+}
+
 /* ========================================
    Actions Footer
    ======================================== */

@@ -39,6 +39,7 @@ const elements = {
   progressFill: null,
   sortBtn: null,
   shuffleBtn: null,
+  exportBtn: null,
   resetRankingsBtn: null,
   resetEverythingBtn: null,
   streamerModeBtn: null,
@@ -68,6 +69,7 @@ function cacheElements() {
   elements.progressFill = document.getElementById('progressFill');
   elements.sortBtn = document.getElementById('sortBtn');
   elements.shuffleBtn = document.getElementById('shuffleBtn');
+  elements.exportBtn = document.getElementById('exportBtn');
   elements.resetRankingsBtn = document.getElementById('resetRankingsBtn');
   elements.resetEverythingBtn = document.getElementById('resetEverythingBtn');
   elements.streamerModeBtn = document.getElementById('streamerModeBtn');
@@ -254,6 +256,7 @@ function attachEventListeners() {
   // Action buttons
   elements.sortBtn.addEventListener('click', sortItemsAlphabetically);
   elements.shuffleBtn.addEventListener('click', shuffleItems);
+  elements.exportBtn.addEventListener('click', exportAsImage);
   elements.resetRankingsBtn.addEventListener('click', resetRankings);
   elements.resetEverythingBtn.addEventListener('click', resetEverything);
   elements.streamerModeBtn.addEventListener('click', toggleStreamerMode);
@@ -579,4 +582,121 @@ function handleResizeStart(e) {
 
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
+}
+
+// ========================================
+// Export as Image
+// ========================================
+
+async function exportAsImage() {
+  const tiers = ['S', 'A', 'B', 'C', 'D'];
+  const tierColors = {
+    S: '#dc2626',
+    A: '#ea580c',
+    B: '#ca8a04',
+    C: '#16a34a',
+    D: '#2563eb'
+  };
+
+  // Settings
+  const padding = 16;
+  const tierLabelWidth = 80;
+  const imageSize = 64;
+  const imageGap = 6;
+  const rowHeight = 80;
+  const rowGap = 4;
+
+  // Calculate dimensions
+  const maxImagesInRow = Math.max(
+    ...tiers.map(tier => state.tierData[tier].length),
+    1
+  );
+  const contentWidth = Math.max(400, maxImagesInRow * (imageSize + imageGap) + padding * 2);
+  const totalWidth = tierLabelWidth + contentWidth + padding * 2;
+  const totalHeight = tiers.length * (rowHeight + rowGap) + padding * 2 - rowGap;
+
+  // Create canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = totalWidth;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  ctx.fillStyle = isDarkMode ? '#0f172a' : '#f8fafc';
+  ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+  // Load all images first
+  const imageCache = new Map();
+  for (const tier of tiers) {
+    for (const item of state.tierData[tier]) {
+      if (!imageCache.has(item.src)) {
+        const img = new Image();
+        img.src = item.src;
+        await new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+        imageCache.set(item.src, img);
+      }
+    }
+  }
+
+  // Draw each tier
+  let y = padding;
+  for (const tier of tiers) {
+    const x = padding;
+
+    // Draw tier label background
+    ctx.fillStyle = tierColors[tier];
+    ctx.beginPath();
+    ctx.roundRect(x, y, tierLabelWidth, rowHeight, [8, 0, 0, 8]);
+    ctx.fill();
+
+    // Draw tier label text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(state.tierNames[tier], x + tierLabelWidth / 2, y + rowHeight / 2);
+
+    // Draw content background
+    ctx.fillStyle = isDarkMode ? '#1e293b' : '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(x + tierLabelWidth, y, contentWidth, rowHeight, [0, 8, 8, 0]);
+    ctx.fill();
+
+    // Draw content border
+    ctx.strokeStyle = isDarkMode ? '#334155' : '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x + tierLabelWidth, y, contentWidth, rowHeight, [0, 8, 8, 0]);
+    ctx.stroke();
+
+    // Draw images
+    let imgX = x + tierLabelWidth + padding / 2;
+    const imgY = y + (rowHeight - imageSize) / 2;
+
+    for (const item of state.tierData[tier]) {
+      const img = imageCache.get(item.src);
+      if (img && img.complete && img.naturalWidth > 0) {
+        // Draw rounded image
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(imgX, imgY, imageSize, imageSize, 6);
+        ctx.clip();
+        ctx.drawImage(img, imgX, imgY, imageSize, imageSize);
+        ctx.restore();
+      }
+      imgX += imageSize + imageGap;
+    }
+
+    y += rowHeight + rowGap;
+  }
+
+  // Download
+  const link = document.createElement('a');
+  link.download = 'tier-list.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
