@@ -140,6 +140,10 @@ header h1 {
   transform: translateY(-50%);
 }
 
+.header-toggle:hover {
+  transform: translateY(-50%);
+}
+
 /* ========================================
    Tier Table
    ======================================== */
