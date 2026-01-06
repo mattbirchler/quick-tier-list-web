@@ -728,6 +728,7 @@ async function exportAsImage() {
   };
 
   // Settings
+  const scale = 3; // 3x resolution for crisp export
   const padding = 16;
   const tierLabelWidth = 80;
   const imageSize = 64;
@@ -744,11 +745,14 @@ async function exportAsImage() {
   const totalWidth = tierLabelWidth + contentWidth + padding * 2;
   const totalHeight = tiers.length * (rowHeight + rowGap) + padding * 2 - rowGap;
 
-  // Create canvas
+  // Create canvas at 3x resolution
   const canvas = document.createElement('canvas');
-  canvas.width = totalWidth;
-  canvas.height = totalHeight;
+  canvas.width = totalWidth * scale;
+  canvas.height = totalHeight * scale;
   const ctx = canvas.getContext('2d');
+
+  // Scale context for high-res rendering
+  ctx.scale(scale, scale);
 
   // Background
   const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
