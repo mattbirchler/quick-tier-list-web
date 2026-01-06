@@ -140,10 +140,6 @@ header h1 {
   transform: translateY(-50%);
 }
 
-.header-toggle:hover {
-  transform: translateY(-50%);
-}
-
 /* ========================================
    Tier Table
    ======================================== */
@@ -481,18 +477,16 @@ header h1 {
 }
 
 .btn:hover {
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
 .btn:active {
-  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
   box-shadow: none;
 }
 
