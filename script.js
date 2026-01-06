@@ -44,7 +44,10 @@ const elements = {
   resetRankingsBtn: null,
   resetEverythingBtn: null,
   streamerModeBtn: null,
-  resizeHandle: null
+  resizeHandle: null,
+  modalOverlay: null,
+  modalCancelBtn: null,
+  modalConfirmBtn: null
 };
 
 // ========================================
@@ -75,6 +78,9 @@ function cacheElements() {
   elements.resetEverythingBtn = document.getElementById('resetEverythingBtn');
   elements.streamerModeBtn = document.getElementById('streamerModeBtn');
   elements.resizeHandle = document.getElementById('resizeHandle');
+  elements.modalOverlay = document.getElementById('modalOverlay');
+  elements.modalCancelBtn = document.getElementById('modalCancelBtn');
+  elements.modalConfirmBtn = document.getElementById('modalConfirmBtn');
 }
 
 function loadFromStorage() {
@@ -261,8 +267,15 @@ function attachEventListeners() {
   elements.shuffleBtn.addEventListener('click', shuffleItems);
   elements.exportBtn.addEventListener('click', exportAsImage);
   elements.resetRankingsBtn.addEventListener('click', resetRankings);
-  elements.resetEverythingBtn.addEventListener('click', resetEverything);
+  elements.resetEverythingBtn.addEventListener('click', showResetModal);
   elements.streamerModeBtn.addEventListener('click', toggleStreamerMode);
+
+  // Modal buttons
+  elements.modalCancelBtn.addEventListener('click', hideModal);
+  elements.modalConfirmBtn.addEventListener('click', confirmResetEverything);
+  elements.modalOverlay.addEventListener('click', (e) => {
+    if (e.target === elements.modalOverlay) hideModal();
+  });
 
   // Resize handle
   elements.resizeHandle.addEventListener('mousedown', handleResizeStart);
@@ -270,6 +283,13 @@ function attachEventListeners() {
   // Prevent default drag behavior on document
   document.addEventListener('dragover', (e) => e.preventDefault());
   document.addEventListener('drop', (e) => e.preventDefault());
+
+  // Escape key to close modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && elements.modalOverlay.classList.contains('visible')) {
+      hideModal();
+    }
+  });
 }
 
 // ========================================
@@ -617,10 +637,27 @@ function resetRankings() {
   render();
 }
 
-function resetEverything() {
-  if (!confirm('Are you sure you want to reset everything? This will delete all images and reset the table width. This cannot be undone.')) {
-    return;
-  }
+// ========================================
+// Modal
+// ========================================
+
+function showResetModal() {
+  elements.modalOverlay.hidden = false;
+  // Trigger reflow for animation
+  elements.modalOverlay.offsetHeight;
+  elements.modalOverlay.classList.add('visible');
+  elements.modalConfirmBtn.focus();
+}
+
+function hideModal() {
+  elements.modalOverlay.classList.remove('visible');
+  setTimeout(() => {
+    elements.modalOverlay.hidden = true;
+  }, 200);
+}
+
+function confirmResetEverything() {
+  hideModal();
 
   state.tierData = {
     S: [],

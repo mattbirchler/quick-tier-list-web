@@ -119,6 +119,10 @@ body {
 
 header {
   margin-bottom: 32px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 header h1 {
@@ -127,6 +131,13 @@ header h1 {
   text-align: center;
   color: var(--text-primary);
   letter-spacing: -0.025em;
+}
+
+.header-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* ========================================
@@ -537,9 +548,78 @@ header h1 {
 
 .actions {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.actions-left,
+.actions-right {
+  display: flex;
+  gap: 12px;
+}
+
+/* ========================================
+   Modal
+   ======================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: calc(100% - 32px);
+  box-shadow: var(--shadow-lg), 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  transform: scale(0.95) translateY(10px);
+  transition: transform 0.2s ease;
+}
+
+.modal-overlay.visible .modal {
+  transform: scale(1) translateY(0);
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.modal-message {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 /* ========================================
@@ -577,8 +657,18 @@ header h1 {
     padding: 16px;
   }
 
+  header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
   header h1 {
     font-size: 1.75rem;
+  }
+
+  .header-toggle {
+    position: static;
+    transform: none;
   }
 
   .container {
@@ -592,6 +682,12 @@ header h1 {
   }
 
   .actions {
+    flex-direction: column;
+  }
+
+  .actions-left,
+  .actions-right {
+    width: 100%;
     flex-direction: column;
   }
 

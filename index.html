@@ -12,6 +12,7 @@
   <div class="container" id="tierContainer">
     <header>
       <h1>Quick Tier List</h1>
+      <button class="btn btn-small btn-secondary header-toggle" id="streamerModeBtn">Streamer Mode</button>
     </header>
 
     <main class="tier-table">
@@ -46,13 +47,28 @@
     </section>
 
     <footer class="actions">
-      <button class="btn btn-success" id="exportBtn">Export as Image</button>
-      <button class="btn btn-warning" id="resetRankingsBtn">Reset Rankings</button>
-      <button class="btn btn-danger" id="resetEverythingBtn">Reset Everything</button>
-      <button class="btn btn-accent" id="streamerModeBtn">Streamer Mode</button>
+      <div class="actions-left">
+        <button class="btn btn-success" id="exportBtn">Export as Image</button>
+      </div>
+      <div class="actions-right">
+        <button class="btn btn-secondary" id="resetRankingsBtn">Reset Rankings</button>
+        <button class="btn btn-danger" id="resetEverythingBtn">Reset Everything</button>
+      </div>
     </footer>
 
     <div class="resize-handle" id="resizeHandle"></div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="modal-overlay" id="modalOverlay" hidden>
+    <div class="modal" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
+      <h2 class="modal-title" id="modalTitle">Reset Everything?</h2>
+      <p class="modal-message">This will delete all images and reset the table width. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="modalCancelBtn">Cancel</button>
+        <button class="btn btn-danger" id="modalConfirmBtn">Reset Everything</button>
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>
