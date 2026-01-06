@@ -293,6 +293,10 @@ function handleImageDragStart(e) {
   state.draggedFromTier = item.dataset.tier;
   item.classList.add('dragging');
 
+  // Random rotation between 2-5 degrees, left or right
+  const rotation = (2 + Math.random() * 3) * (Math.random() < 0.5 ? -1 : 1);
+  item.style.transform = `scale(1.12) rotate(${rotation}deg)`;
+
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', item.dataset.id);
 }
@@ -301,6 +305,7 @@ function handleImageDragEnd(e) {
   const item = e.target.closest('.image-item');
   if (item) {
     item.classList.remove('dragging');
+    item.style.transform = '';
   }
   state.draggedItem = null;
   state.draggedFromTier = null;
