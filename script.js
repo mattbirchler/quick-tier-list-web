@@ -20,7 +20,8 @@ const state = {
   isStreamerMode: false,
   tableWidth: 1152,
   draggedItem: null,
-  draggedFromTier: null
+  draggedFromTier: null,
+  dropTarget: null // { id, position: 'left' | 'right' }
 };
 
 // ========================================
@@ -207,6 +208,8 @@ function attachImageItemListeners(container) {
   container.querySelectorAll('.image-item').forEach(item => {
     item.addEventListener('dragstart', handleImageDragStart);
     item.addEventListener('dragend', handleImageDragEnd);
+    item.addEventListener('dragover', handleImageDragOver);
+    item.addEventListener('dragleave', handleImageDragLeave);
   });
 
   container.querySelectorAll('.delete-btn').forEach(btn => {
@@ -301,6 +304,48 @@ function handleImageDragEnd(e) {
   }
   state.draggedItem = null;
   state.draggedFromTier = null;
+  state.dropTarget = null;
+  clearDropIndicators();
+}
+
+function handleImageDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (!state.draggedItem) return;
+
+  const item = e.currentTarget;
+  const itemId = item.dataset.id;
+
+  // Don't show indicator on the item being dragged
+  if (itemId === state.draggedItem) return;
+
+  const rect = item.getBoundingClientRect();
+  const midpoint = rect.left + rect.width / 2;
+  const position = e.clientX < midpoint ? 'left' : 'right';
+
+  // Only update if changed
+  if (!state.dropTarget || state.dropTarget.id !== itemId || state.dropTarget.position !== position) {
+    clearDropIndicators();
+    state.dropTarget = { id: itemId, position };
+    item.classList.add(`drop-${position}`);
+  }
+}
+
+function handleImageDragLeave(e) {
+  const item = e.currentTarget;
+  item.classList.remove('drop-left', 'drop-right');
+
+  // Clear drop target if leaving this item
+  if (state.dropTarget && state.dropTarget.id === item.dataset.id) {
+    state.dropTarget = null;
+  }
+}
+
+function clearDropIndicators() {
+  document.querySelectorAll('.image-item').forEach(item => {
+    item.classList.remove('drop-left', 'drop-right');
+  });
 }
 
 function handleDragOver(e) {
@@ -315,15 +360,24 @@ function handleDragLeave(e) {
 function handleDrop(e) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
+  clearDropIndicators();
 
   if (!state.draggedItem) return;
 
   const toTier = e.currentTarget.dataset.tier;
   const fromTier = state.draggedFromTier;
 
-  if (fromTier === toTier) return;
+  // Calculate insertion index based on drop target
+  let insertIndex = -1;
+  if (state.dropTarget) {
+    const targetIndex = state.tierData[toTier].findIndex(img => img.id === state.dropTarget.id);
+    if (targetIndex !== -1) {
+      insertIndex = state.dropTarget.position === 'left' ? targetIndex : targetIndex + 1;
+    }
+  }
 
-  moveItem(state.draggedItem, fromTier, toTier);
+  moveItem(state.draggedItem, fromTier, toTier, insertIndex);
+  state.dropTarget = null;
 }
 
 function handleItemsAreaDragOver(e) {
@@ -343,10 +397,21 @@ function handleItemsAreaDrop(e) {
   e.preventDefault();
   e.stopPropagation();
   elements.itemsDropZone.classList.remove('drag-over');
+  clearDropIndicators();
 
   // Check if dropping an existing item
   if (state.draggedItem) {
-    moveItem(state.draggedItem, state.draggedFromTier, 'unranked');
+    // Calculate insertion index based on drop target
+    let insertIndex = -1;
+    if (state.dropTarget) {
+      const targetIndex = state.tierData.unranked.findIndex(img => img.id === state.dropTarget.id);
+      if (targetIndex !== -1) {
+        insertIndex = state.dropTarget.position === 'left' ? targetIndex : targetIndex + 1;
+      }
+    }
+
+    moveItem(state.draggedItem, state.draggedFromTier, 'unranked', insertIndex);
+    state.dropTarget = null;
     return;
   }
 
@@ -357,15 +422,37 @@ function handleItemsAreaDrop(e) {
   }
 }
 
-function moveItem(itemId, fromTier, toTier) {
+function moveItem(itemId, fromTier, toTier, insertIndex = -1) {
   const itemIndex = state.tierData[fromTier].findIndex(img => img.id === itemId);
   if (itemIndex === -1) return;
 
   const [item] = state.tierData[fromTier].splice(itemIndex, 1);
-  state.tierData[toTier].push(item);
+
+  // If moving within the same tier, adjust index if needed
+  if (fromTier === toTier && insertIndex > itemIndex) {
+    insertIndex--;
+  }
+
+  // Insert at specific position or append to end
+  if (insertIndex >= 0 && insertIndex <= state.tierData[toTier].length) {
+    state.tierData[toTier].splice(insertIndex, 0, item);
+  } else {
+    state.tierData[toTier].push(item);
+  }
 
   saveToStorage();
   render();
+
+  // Add drop animation to the moved item
+  requestAnimationFrame(() => {
+    const droppedItem = document.querySelector(`.image-item[data-id="${itemId}"]`);
+    if (droppedItem) {
+      droppedItem.classList.add('just-dropped');
+      droppedItem.addEventListener('animationend', () => {
+        droppedItem.classList.remove('just-dropped');
+      }, { once: true });
+    }
+  });
 }
 
 // ========================================

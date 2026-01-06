@@ -214,10 +214,28 @@ header h1 {
   width: var(--image-size);
   height: var(--image-size);
   border-radius: var(--border-radius-sm);
-  overflow: hidden;
+  overflow: visible;
   cursor: grab;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
   box-shadow: var(--shadow-sm);
+}
+
+.image-item.just-dropped {
+  animation: dropBounce 0.3s ease-out;
+}
+
+@keyframes dropBounce {
+  0% {
+    transform: scale(1.05) translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+  50% {
+    transform: scale(0.98) translateY(2px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    box-shadow: var(--shadow-sm);
+  }
 }
 
 .image-item:hover {
@@ -230,8 +248,10 @@ header h1 {
 }
 
 .image-item.dragging {
-  opacity: 0.5;
-  transform: scale(0.95);
+  opacity: 0.6;
+  transform: scale(1.05) rotate(2deg);
+  box-shadow: var(--shadow-lg), 0 15px 25px -5px rgba(0, 0, 0, 0.2);
+  z-index: 100;
 }
 
 .image-item img {
@@ -269,6 +289,26 @@ header h1 {
 
 .image-item .delete-btn:hover {
   background: var(--danger-hover);
+}
+
+.image-item.drop-left::before,
+.image-item.drop-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 10;
+}
+
+.image-item.drop-left::before {
+  left: -5px;
+}
+
+.image-item.drop-right::after {
+  right: -5px;
 }
 
 /* ========================================
