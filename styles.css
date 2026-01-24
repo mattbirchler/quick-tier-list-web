@@ -223,7 +223,6 @@ header h1 {
 
 .image-item {
   position: relative;
-  width: var(--image-size);
   height: var(--image-size);
   border-radius: var(--border-radius-sm);
   overflow: visible;
@@ -270,9 +269,8 @@ header h1 {
 }
 
 .image-item img {
-  width: 100%;
   height: 100%;
-  object-fit: cover;
+  width: auto;
   pointer-events: none;
   border-radius: var(--border-radius-sm);
 }

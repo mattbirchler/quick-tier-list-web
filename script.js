@@ -551,7 +551,7 @@ async function processFiles(files) {
   render();
 }
 
-function compressImage(file, maxWidth = 150, maxHeight = 150, quality = 0.7) {
+function compressImage(file, maxHeight = 150, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -560,16 +560,10 @@ function compressImage(file, maxWidth = 150, maxHeight = 150, quality = 0.7) {
     img.onload = () => {
       let { width, height } = img;
 
-      if (width > height) {
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxHeight) {
-          width = (width * maxHeight) / height;
-          height = maxHeight;
-        }
+      // Scale to fit within maxHeight, preserving aspect ratio
+      if (height > maxHeight) {
+        width = (width * maxHeight) / height;
+        height = maxHeight;
       }
 
       canvas.width = width;
@@ -731,17 +725,48 @@ async function exportAsImage() {
   const scale = 6; // 6x resolution for crisp export
   const padding = 16;
   const tierLabelWidth = 80;
-  const imageSize = 64;
+  const imageHeight = 64;
   const imageGap = 6;
   const rowHeight = 80;
   const rowGap = 4;
 
-  // Calculate dimensions
-  const maxImagesInRow = Math.max(
-    ...tiers.map(tier => state.tierData[tier].length),
-    1
+  // Load all images first and calculate their display widths
+  const imageCache = new Map();
+  for (const tier of tiers) {
+    for (const item of state.tierData[tier]) {
+      if (!imageCache.has(item.src)) {
+        const img = new Image();
+        img.src = item.src;
+        await new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+        imageCache.set(item.src, img);
+      }
+    }
+  }
+
+  // Calculate the width needed for each tier row based on actual image widths
+  function getImageDisplayWidth(img) {
+    if (!img || !img.complete || img.naturalWidth === 0) return imageHeight;
+    const aspect = img.naturalWidth / img.naturalHeight;
+    return imageHeight * aspect;
+  }
+
+  function getTierRowWidth(tier) {
+    let width = 0;
+    for (const item of state.tierData[tier]) {
+      const img = imageCache.get(item.src);
+      width += getImageDisplayWidth(img) + imageGap;
+    }
+    return width > 0 ? width - imageGap : 0; // Remove last gap
+  }
+
+  const maxRowWidth = Math.max(
+    ...tiers.map(tier => getTierRowWidth(tier)),
+    400 - padding * 2 // Minimum content width
   );
-  const contentWidth = Math.max(400, maxImagesInRow * (imageSize + imageGap) + padding * 2);
+  const contentWidth = maxRowWidth + padding * 2;
   const totalWidth = tierLabelWidth + contentWidth + padding * 2;
   const totalHeight = tiers.length * (rowHeight + rowGap) + padding * 2 - rowGap;
 
@@ -758,22 +783,6 @@ async function exportAsImage() {
   const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
   ctx.fillStyle = isDarkMode ? '#0f172a' : '#f8fafc';
   ctx.fillRect(0, 0, totalWidth, totalHeight);
-
-  // Load all images first
-  const imageCache = new Map();
-  for (const tier of tiers) {
-    for (const item of state.tierData[tier]) {
-      if (!imageCache.has(item.src)) {
-        const img = new Image();
-        img.src = item.src;
-        await new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-        imageCache.set(item.src, img);
-      }
-    }
-  }
 
   // Draw each tier
   let y = padding;
@@ -817,35 +826,23 @@ async function exportAsImage() {
 
     // Draw images
     let imgX = x + tierLabelWidth + padding / 2;
-    const imgY = y + (rowHeight - imageSize) / 2;
+    const imgY = y + (rowHeight - imageHeight) / 2;
 
     for (const item of state.tierData[tier]) {
       const img = imageCache.get(item.src);
       if (img && img.complete && img.naturalWidth > 0) {
-        // Draw rounded image with "cover" behavior (maintain aspect ratio)
+        const imgWidth = getImageDisplayWidth(img);
+
+        // Draw rounded image preserving aspect ratio
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(imgX, imgY, imageSize, imageSize, 6);
+        ctx.roundRect(imgX, imgY, imgWidth, imageHeight, 6);
         ctx.clip();
-
-        // Calculate cover dimensions
-        const imgAspect = img.naturalWidth / img.naturalHeight;
-        let srcX = 0, srcY = 0, srcW = img.naturalWidth, srcH = img.naturalHeight;
-
-        if (imgAspect > 1) {
-          // Image is wider - crop sides
-          srcW = img.naturalHeight;
-          srcX = (img.naturalWidth - srcW) / 2;
-        } else if (imgAspect < 1) {
-          // Image is taller - crop top/bottom
-          srcH = img.naturalWidth;
-          srcY = (img.naturalHeight - srcH) / 2;
-        }
-
-        ctx.drawImage(img, srcX, srcY, srcW, srcH, imgX, imgY, imageSize, imageSize);
+        ctx.drawImage(img, imgX, imgY, imgWidth, imageHeight);
         ctx.restore();
+
+        imgX += imgWidth + imageGap;
       }
-      imgX += imageSize + imageGap;
     }
 
     y += rowHeight + rowGap;
