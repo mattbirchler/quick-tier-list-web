@@ -616,6 +616,7 @@ function compressImage(file, maxHeight = 150, quality = 0.7) {
         'retro-arcade': '#1a1a2e',
         twitch: '#18181b',
         pastel: '#ffffff',
+        tangerine: '#ffffff',
         'comfort-zone': '#f5f0fa',
         colorblind: '#ffffff'
       };
@@ -845,6 +846,18 @@ async function exportAsImage() {
         B: '#fff59d',
         C: '#98fb98',
         D: '#a0d2ff'
+      }
+    },
+    tangerine: {
+      bg: '#fff8f0',
+      contentBg: '#ffffff',
+      border: '#ffe8d0',
+      tierColors: {
+        S: '#ff6b00',
+        A: '#ff9500',
+        B: '#ffb340',
+        C: '#ffd080',
+        D: '#b89070'
       }
     },
     'comfort-zone': {
