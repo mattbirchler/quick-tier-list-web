@@ -19,6 +19,7 @@ const state = {
   tierNames: { S: 'S', A: 'A', B: 'B', C: 'C', D: 'D' },
   isStreamerMode: false,
   tableWidth: 1152,
+  theme: 'system', // 'system', 'light', 'dark', 'cyberpunk'
   draggedItem: null,
   draggedFromTier: null,
   dropTarget: null // { id, position: 'left' | 'right' }
@@ -44,6 +45,7 @@ const elements = {
   resetRankingsBtn: null,
   resetEverythingBtn: null,
   streamerModeBtn: null,
+  themeSelect: null,
   resizeHandle: null,
   modalOverlay: null,
   modalCancelBtn: null,
@@ -77,6 +79,7 @@ function cacheElements() {
   elements.resetRankingsBtn = document.getElementById('resetRankingsBtn');
   elements.resetEverythingBtn = document.getElementById('resetEverythingBtn');
   elements.streamerModeBtn = document.getElementById('streamerModeBtn');
+  elements.themeSelect = document.getElementById('themeSelect');
   elements.resizeHandle = document.getElementById('resizeHandle');
   elements.modalOverlay = document.getElementById('modalOverlay');
   elements.modalCancelBtn = document.getElementById('modalCancelBtn');
@@ -103,6 +106,11 @@ function loadFromStorage() {
     const savedTableWidth = localStorage.getItem('tableWidth');
     if (savedTableWidth) {
       state.tableWidth = JSON.parse(savedTableWidth);
+    }
+
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      state.theme = savedTheme;
     }
   } catch (error) {
     console.error('Error loading from localStorage:', error);
@@ -138,11 +146,38 @@ function saveTableWidth() {
   localStorage.setItem('tableWidth', JSON.stringify(state.tableWidth));
 }
 
+function saveTheme() {
+  localStorage.setItem('theme', state.theme);
+}
+
+function applyTheme() {
+  const root = document.documentElement;
+
+  if (state.theme === 'system') {
+    root.removeAttribute('data-theme');
+  } else {
+    root.setAttribute('data-theme', state.theme);
+  }
+
+  // Update select element to match current theme
+  if (elements.themeSelect) {
+    elements.themeSelect.value = state.theme;
+  }
+}
+
+function getEffectiveTheme() {
+  if (state.theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return state.theme;
+}
+
 // ========================================
 // Rendering
 // ========================================
 
 function render() {
+  applyTheme();
   renderTiers();
   renderItems();
   updateContainerStyles();
@@ -279,6 +314,9 @@ function attachEventListeners() {
 
   // Resize handle
   elements.resizeHandle.addEventListener('mousedown', handleResizeStart);
+
+  // Theme selector
+  elements.themeSelect.addEventListener('change', handleThemeChange);
 
   // Prevent default drag behavior on document
   document.addEventListener('dragover', (e) => e.preventDefault());
@@ -569,9 +607,14 @@ function compressImage(file, maxHeight = 150, quality = 0.7) {
       canvas.width = width;
       canvas.height = height;
 
-      // Background color based on color scheme
-      const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      ctx.fillStyle = isDarkMode ? '#1e293b' : '#ffffff';
+      // Background color based on effective theme
+      const effectiveTheme = getEffectiveTheme();
+      const bgColors = {
+        light: '#ffffff',
+        dark: '#1e293b',
+        cyberpunk: '#12121a'
+      };
+      ctx.fillStyle = bgColors[effectiveTheme] || '#ffffff';
       ctx.fillRect(0, 0, width, height);
 
       ctx.drawImage(img, 0, 0, width, height);
@@ -679,6 +722,16 @@ function toggleStreamerMode() {
 }
 
 // ========================================
+// Theme Handling
+// ========================================
+
+function handleThemeChange(e) {
+  state.theme = e.target.value;
+  saveTheme();
+  applyTheme();
+}
+
+// ========================================
 // Resize Handling
 // ========================================
 
@@ -713,13 +766,50 @@ function handleResizeStart(e) {
 
 async function exportAsImage() {
   const tiers = ['S', 'A', 'B', 'C', 'D'];
-  const tierColors = {
-    S: '#dc2626',
-    A: '#ea580c',
-    B: '#ca8a04',
-    C: '#16a34a',
-    D: '#2563eb'
+  const effectiveTheme = getEffectiveTheme();
+
+  // Theme-specific colors
+  const themeColors = {
+    light: {
+      bg: '#f8fafc',
+      contentBg: '#ffffff',
+      border: '#e2e8f0',
+      tierColors: {
+        S: '#dc2626',
+        A: '#ea580c',
+        B: '#ca8a04',
+        C: '#16a34a',
+        D: '#2563eb'
+      }
+    },
+    dark: {
+      bg: '#0f172a',
+      contentBg: '#1e293b',
+      border: '#334155',
+      tierColors: {
+        S: '#dc2626',
+        A: '#ea580c',
+        B: '#ca8a04',
+        C: '#16a34a',
+        D: '#2563eb'
+      }
+    },
+    cyberpunk: {
+      bg: '#0a0a0f',
+      contentBg: '#12121a',
+      border: '#2a2a3a',
+      tierColors: {
+        S: '#ff0066',
+        A: '#ff7700',
+        B: '#ffdd00',
+        C: '#00ff77',
+        D: '#00aaff'
+      }
+    }
   };
+
+  const colors = themeColors[effectiveTheme] || themeColors.light;
+  const tierColors = colors.tierColors;
 
   // Settings
   const scale = 6; // 6x resolution for crisp export
@@ -780,8 +870,7 @@ async function exportAsImage() {
   ctx.scale(scale, scale);
 
   // Background
-  const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  ctx.fillStyle = isDarkMode ? '#0f172a' : '#f8fafc';
+  ctx.fillStyle = colors.bg;
   ctx.fillRect(0, 0, totalWidth, totalHeight);
 
   // Draw each tier
@@ -812,13 +901,13 @@ async function exportAsImage() {
     ctx.fillText(labelText, x + tierLabelWidth / 2, y + rowHeight / 2);
 
     // Draw content background
-    ctx.fillStyle = isDarkMode ? '#1e293b' : '#ffffff';
+    ctx.fillStyle = colors.contentBg;
     ctx.beginPath();
     ctx.roundRect(x + tierLabelWidth, y, contentWidth, rowHeight, [0, 8, 8, 0]);
     ctx.fill();
 
     // Draw content border
-    ctx.strokeStyle = isDarkMode ? '#334155' : '#e2e8f0';
+    ctx.strokeStyle = colors.border;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(x + tierLabelWidth, y, contentWidth, rowHeight, [0, 8, 8, 0]);
