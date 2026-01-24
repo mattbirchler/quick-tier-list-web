@@ -849,15 +849,15 @@ async function exportAsImage() {
       }
     },
     tangerine: {
-      bg: '#fff8f0',
+      bg: '#fff6ec',
       contentBg: '#ffffff',
-      border: '#ffe8d0',
+      border: '#e8e8e8',
       tierColors: {
-        S: '#ff6b00',
-        A: '#ff9500',
-        B: '#ffb340',
-        C: '#ffd080',
-        D: '#b89070'
+        S: '#e55a00',
+        A: '#e58500',
+        B: '#e5a030',
+        C: '#e5b860',
+        D: '#a88860'
       }
     },
     'comfort-zone': {

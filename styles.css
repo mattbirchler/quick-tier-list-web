@@ -218,16 +218,16 @@
 
 /* Tangerine Theme */
 :root[data-theme="tangerine"] {
-  --bg-primary: #fff8f0;
+  --bg-primary: #fff6ec;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #fff0e0;
+  --bg-tertiary: #ebe8e5;
   --text-primary: #1a1a1a;
   --text-secondary: #6b6b6b;
   --text-muted: #9a9a9a;
-  --border-color: #ffe8d0;
-  --border-hover: #ff8c00;
+  --border-color: #e8e8e8;
+  --border-hover: #e6712d;
 
-  /* Warm tangerine tier colors */
+  /* Orange gradient tier colors */
   --tier-s: linear-gradient(135deg, #ff6b00 0%, #e55a00 100%);
   --tier-a: linear-gradient(135deg, #ff9500 0%, #e58500 100%);
   --tier-b: linear-gradient(135deg, #ffb340 0%, #e5a030 100%);
@@ -235,18 +235,18 @@
   --tier-d: linear-gradient(135deg, #c8a080 0%, #a88860 100%);
 
   /* Accent colors */
-  --accent: #ff8c00;
-  --accent-hover: #e57a00;
-  --warning: #ffb340;
-  --warning-hover: #e5a030;
-  --danger: #e54d00;
-  --danger-hover: #cc4400;
+  --accent: #e6712d;
+  --accent-hover: #c45a1f;
+  --warning: #f5a06a;
+  --warning-hover: #f08a4a;
+  --danger: #c44a1f;
+  --danger-hover: #a33d18;
   --success: #4a9f4a;
 
-  --shadow-sm: 0 1px 3px rgba(255, 140, 0, 0.08);
-  --shadow-md: 0 4px 6px -1px rgba(255, 140, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(255, 140, 0, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
-  --shadow-tier: 0 2px 4px rgba(255, 140, 0, 0.15);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+  --shadow-tier: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* Comfort Zone Theme */
@@ -637,49 +637,42 @@
 }
 
 /* Tangerine-specific enhancements */
-:root[data-theme="tangerine"] .tier-content.drag-over {
-  border-color: #ff8c00;
-  background: #fff5e8;
-}
-
-:root[data-theme="tangerine"] .btn-secondary {
-  background: #fff0e0;
-  border: 1px solid #ffe8d0;
+:root[data-theme="tangerine"] header h1 {
   color: #1a1a1a;
 }
 
-:root[data-theme="tangerine"] .btn-secondary:hover:not(:disabled) {
-  background: #ffe8d0;
-  border-color: #ff8c00;
+:root[data-theme="tangerine"] .tier-content.drag-over {
+  border-color: #e6712d;
+  background: #fff5ee;
 }
 
-:root[data-theme="tangerine"] .btn-accent {
-  background: linear-gradient(135deg, #ff8c00 0%, #e57a00 100%);
-}
-
-:root[data-theme="tangerine"] .btn-success {
-  background: linear-gradient(135deg, #4a9f4a 0%, #3d8a3d 100%);
+:root[data-theme="tangerine"] .btn {
+  background: #e6712d;
   color: #ffffff;
 }
 
+:root[data-theme="tangerine"] .btn:hover:not(:disabled) {
+  background: #c45a1f;
+}
+
 :root[data-theme="tangerine"] .items-drop-zone {
-  border-color: #ffe8d0;
+  border-color: #e8e8e8;
   background: #ffffff;
 }
 
 :root[data-theme="tangerine"] .items-drop-zone.drag-over {
-  border-color: #ff8c00;
-  background: #fff5e8;
+  border-color: #c45a1f;
+  background: #fff5ee;
 }
 
 :root[data-theme="tangerine"] .theme-select {
   background: #ffffff;
-  border-color: #ffe8d0;
+  border-color: #e8e8e8;
   color: #1a1a1a;
 }
 
 :root[data-theme="tangerine"] .theme-select:hover {
-  border-color: #ff8c00;
+  border-color: #e6712d;
 }
 
 :root[data-theme="tangerine"] .upload-progress {
