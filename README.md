@@ -2,6 +2,8 @@
 
 A simple, fast tier list maker. No sign up. No server. Just drag and drop.
 
+**Try it now at [quicktierlist.com](https://quicktierlist.com/)**
+
 ## Features
 
 - **Drag & Drop** - Upload images by dropping them, then drag to rank
