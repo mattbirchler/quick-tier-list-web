@@ -612,7 +612,12 @@ function compressImage(file, maxHeight = 150, quality = 0.7) {
       const bgColors = {
         light: '#ffffff',
         dark: '#1e293b',
-        cyberpunk: '#12121a'
+        cyberpunk: '#12121a',
+        'retro-arcade': '#1a1a2e',
+        twitch: '#18181b',
+        pastel: '#ffffff',
+        'comfort-zone': '#f5f0fa',
+        colorblind: '#ffffff'
       };
       ctx.fillStyle = bgColors[effectiveTheme] || '#ffffff';
       ctx.fillRect(0, 0, width, height);
@@ -805,6 +810,66 @@ async function exportAsImage() {
         C: '#00ff77',
         D: '#00aaff'
       }
+    },
+    'retro-arcade': {
+      bg: '#0d0d1a',
+      contentBg: '#1a1a2e',
+      border: '#333366',
+      tierColors: {
+        S: '#ff0060',
+        A: '#ff9f00',
+        B: '#dfff00',
+        C: '#00ff60',
+        D: '#009fff'
+      }
+    },
+    twitch: {
+      bg: '#0e0e10',
+      contentBg: '#18181b',
+      border: '#2f2f35',
+      tierColors: {
+        S: '#9147ff',
+        A: '#bf94ff',
+        B: '#00c8af',
+        C: '#1f69ff',
+        D: '#eb0400'
+      }
+    },
+    pastel: {
+      bg: '#fef7f0',
+      contentBg: '#ffffff',
+      border: '#e8dff0',
+      tierColors: {
+        S: '#ff9aa2',
+        A: '#ffc98b',
+        B: '#fff59d',
+        C: '#98fb98',
+        D: '#a0d2ff'
+      }
+    },
+    'comfort-zone': {
+      bg: '#e8e0f0',
+      contentBg: '#f5f0fa',
+      border: '#d0c4e0',
+      tierColors: {
+        S: '#c85088',
+        A: '#8b6ba8',
+        B: '#6ab8b8',
+        C: '#e8a850',
+        D: '#b8a0d0'
+      }
+    },
+    colorblind: {
+      bg: '#f5f5f5',
+      contentBg: '#ffffff',
+      border: '#e0e0e0',
+      tierColors: {
+        S: '#0077bb',
+        A: '#33bbee',
+        B: '#ee7733',
+        C: '#ee3377',
+        D: '#999999'
+      }
     }
   };
 
@@ -891,12 +956,12 @@ async function exportAsImage() {
     const labelText = state.tierNames[tier];
     const maxLabelWidth = tierLabelWidth - 12; // padding on sides
     let fontSize = 18;
-    ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    ctx.font = `bold ${fontSize}px 'Nunito', sans-serif`;
 
     // Scale down font if text is too wide
     while (ctx.measureText(labelText).width > maxLabelWidth && fontSize > 8) {
       fontSize--;
-      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+      ctx.font = `bold ${fontSize}px 'Nunito', sans-serif`;
     }
     ctx.fillText(labelText, x + tierLabelWidth / 2, y + rowHeight / 2);
 
