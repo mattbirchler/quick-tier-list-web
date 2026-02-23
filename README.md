@@ -43,7 +43,7 @@ favicon.svg  - Icon
 
 ## Forking
 
-This project includes [Plausible](https://plausible.io/) analytics for quicktierlist.com. If you fork this project, remove the Plausible `<script>` tags at the bottom of `index.html`.
+This project includes [Umami](https://umami.is/) analytics for quicktierlist.com. If you fork this project, remove the Umami `<script>` tag at the bottom of `index.html`.
 
 ## License
 
