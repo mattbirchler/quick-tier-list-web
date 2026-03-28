@@ -1417,6 +1417,11 @@ header h1 {
   transform: scale(1);
 }
 
+.container.streamer-mode ~ .lightbox-overlay {
+  justify-content: flex-start;
+  padding-left: 24px;
+}
+
 .image-item.selected {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
