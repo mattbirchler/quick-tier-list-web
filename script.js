@@ -634,7 +634,7 @@ async function processFiles(files) {
   render();
 }
 
-function compressImage(file, maxHeight = 150, quality = 0.7) {
+function compressImage(file, maxHeight = 1024, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
