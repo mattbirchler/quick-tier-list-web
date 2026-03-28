@@ -1374,6 +1374,56 @@ header h1 {
 }
 
 /* ========================================
+   Lightbox
+   ======================================== */
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  cursor: pointer;
+}
+
+.lightbox-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.lightbox-overlay[hidden] {
+  display: none;
+}
+
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--border-radius);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.lightbox-overlay.visible .lightbox-image {
+  transform: scale(1);
+}
+
+.image-item.selected {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--border-radius-sm);
+}
+
+/* ========================================
    Theme Selector
    ======================================== */
 
