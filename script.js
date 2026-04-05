@@ -23,7 +23,7 @@ const state = {
   draggedItem: null,
   draggedFromTier: null,
   dropTarget: null, // { id, position: 'left' | 'right' }
-  selectedItemId: null
+  selectedItemIds: []
 };
 
 // ========================================
@@ -88,7 +88,7 @@ function cacheElements() {
   elements.modalCancelBtn = document.getElementById('modalCancelBtn');
   elements.modalConfirmBtn = document.getElementById('modalConfirmBtn');
   elements.lightboxOverlay = document.getElementById('lightboxOverlay');
-  elements.lightboxImage = document.getElementById('lightboxImage');
+  elements.lightboxContent = document.getElementById('lightboxContent');
 }
 
 function loadFromStorage() {
@@ -229,7 +229,7 @@ function renderTiers() {
 }
 
 function renderItems() {
-  const previouslySelected = state.selectedItemId;
+  const previouslySelected = [...state.selectedItemIds];
 
   elements.itemsGrid.innerHTML = state.tierData.unranked
     .map(item => createImageItemHTML(item, 'unranked'))
@@ -242,12 +242,12 @@ function renderItems() {
   // Attach image item listeners
   attachImageItemListeners(elements.itemsGrid);
 
-  // Restore selection if item still exists in unranked
-  if (previouslySelected && state.tierData.unranked.some(img => img.id === previouslySelected)) {
-    const el = elements.itemsGrid.querySelector(`.image-item[data-id="${previouslySelected}"]`);
+  // Restore selection for items that still exist in unranked
+  const stillValid = previouslySelected.filter(id => state.tierData.unranked.some(img => img.id === id));
+  state.selectedItemIds = stillValid;
+  for (const id of stillValid) {
+    const el = elements.itemsGrid.querySelector(`.image-item[data-id="${id}"]`);
     if (el) el.classList.add('selected');
-  } else {
-    state.selectedItemId = null;
   }
 }
 
@@ -349,7 +349,7 @@ function attachEventListeners() {
         hideLightbox();
       } else if (elements.modalOverlay.classList.contains('visible')) {
         hideModal();
-      } else if (state.selectedItemId) {
+      } else if (state.selectedItemIds.length > 0) {
         clearSelection();
       }
     }
@@ -357,16 +357,16 @@ function attachEventListeners() {
       if (elements.lightboxOverlay.classList.contains('visible')) {
         e.preventDefault();
         hideLightbox();
-      } else if (state.selectedItemId) {
+      } else if (state.selectedItemIds.length > 0) {
         e.preventDefault();
-        showLightbox(state.selectedItemId);
+        showLightbox(state.selectedItemIds);
       }
     }
   });
 
   // Click outside items to deselect
   document.addEventListener('click', (e) => {
-    if (state.selectedItemId && !e.target.closest('.image-item') && !e.target.closest('.lightbox-overlay')) {
+    if (state.selectedItemIds.length > 0 && !e.target.closest('.image-item') && !e.target.closest('.lightbox-overlay')) {
       clearSelection();
     }
   });
@@ -773,30 +773,71 @@ function handleItemSelect(e) {
   const item = e.currentTarget;
   const id = item.dataset.id;
 
-  // Toggle selection
-  if (state.selectedItemId === id) {
-    clearSelection();
+  if (e.shiftKey && state.selectedItemIds.length > 0) {
+    // Shift+click: select range from last selected to clicked item
+    const lastSelectedId = state.selectedItemIds[state.selectedItemIds.length - 1];
+    const unrankedIds = state.tierData.unranked.map(img => img.id);
+    const lastIndex = unrankedIds.indexOf(lastSelectedId);
+    const clickedIndex = unrankedIds.indexOf(id);
+
+    if (lastIndex !== -1 && clickedIndex !== -1) {
+      const start = Math.min(lastIndex, clickedIndex);
+      const end = Math.max(lastIndex, clickedIndex);
+      const rangeIds = unrankedIds.slice(start, end + 1);
+
+      // Add range to selection (deduplicate)
+      for (const rangeId of rangeIds) {
+        if (!state.selectedItemIds.includes(rangeId)) {
+          state.selectedItemIds.push(rangeId);
+        }
+      }
+
+      // Update visual selection
+      document.querySelectorAll('.image-item.selected').forEach(el => el.classList.remove('selected'));
+      for (const selId of state.selectedItemIds) {
+        const el = elements.itemsGrid.querySelector(`.image-item[data-id="${selId}"]`);
+        if (el) el.classList.add('selected');
+      }
+    }
     return;
   }
 
-  clearSelection();
-  state.selectedItemId = id;
-  item.classList.add('selected');
+  // Regular click: toggle single selection
+  const idx = state.selectedItemIds.indexOf(id);
+  if (idx !== -1) {
+    state.selectedItemIds.splice(idx, 1);
+    item.classList.remove('selected');
+  } else {
+    // Clear previous selections and select this one
+    clearSelection();
+    state.selectedItemIds = [id];
+    item.classList.add('selected');
+  }
 }
 
 function clearSelection() {
-  state.selectedItemId = null;
+  state.selectedItemIds = [];
   document.querySelectorAll('.image-item.selected').forEach(el => {
     el.classList.remove('selected');
   });
 }
 
-function showLightbox(itemId) {
-  const item = state.tierData.unranked.find(img => img.id === itemId);
-  if (!item) return;
+function showLightbox(itemIds) {
+  const items = itemIds
+    .map(id => state.tierData.unranked.find(img => img.id === id))
+    .filter(Boolean);
+  if (items.length === 0) return;
 
-  elements.lightboxImage.src = item.src;
-  elements.lightboxImage.alt = item.name;
+  // Build lightbox content — scale images to share the viewport width
+  const count = items.length;
+  const gapPx = 16;
+  const totalGap = (count - 1) * gapPx;
+  const maxPerImage = `calc((95vw - ${totalGap}px) / ${count})`;
+
+  elements.lightboxContent.innerHTML = items
+    .map(item => `<img class="lightbox-image" style="max-width:${maxPerImage}" src="${item.src}" alt="${item.name}">`)
+    .join('');
+
   elements.lightboxOverlay.hidden = false;
   elements.lightboxOverlay.offsetHeight; // trigger reflow
   elements.lightboxOverlay.classList.add('visible');

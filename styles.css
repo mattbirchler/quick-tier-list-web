@@ -1400,21 +1400,31 @@ header h1 {
   display: none;
 }
 
+.lightbox-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  max-width: 95vw;
+  max-height: 90vh;
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+}
+
+.lightbox-overlay.visible .lightbox-content {
+  transform: scale(1);
+}
+
 .lightbox-image {
-  max-width: 90vw;
   max-height: 90vh;
   object-fit: contain;
   border-radius: var(--border-radius);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  transform: scale(0.95);
-  transition: transform 0.2s ease;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-}
-
-.lightbox-overlay.visible .lightbox-image {
-  transform: scale(1);
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .container.streamer-mode ~ .lightbox-overlay {
