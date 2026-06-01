@@ -15,7 +15,6 @@
   <div class="container" id="tierContainer">
     <header>
       <h1>Quick Tier List</h1>
-      <button class="btn btn-small btn-secondary header-toggle" id="streamerModeBtn">Streamer Mode</button>
     </header>
 
     <main class="tier-table">
@@ -60,19 +59,28 @@
     </footer>
 
     <section class="theme-section">
-      <label class="theme-label" for="themeSelect">Theme</label>
-      <select class="theme-select" id="themeSelect">
-        <option value="system">System Default</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-        <option value="cyberpunk">Cyberpunk</option>
-        <option value="retro-arcade">Retro Arcade</option>
-        <option value="twitch">Twitch Purple</option>
-        <option value="pastel">Pastel</option>
-        <option value="tangerine">Tangerine</option>
-        <option value="comfort-zone">Comfort Zone</option>
-        <option value="colorblind">Colorblind-Safe</option>
-      </select>
+      <div class="theme-control">
+        <label class="theme-label" for="alignSelect">Align</label>
+        <select class="theme-select" id="alignSelect">
+          <option value="center">Centered</option>
+          <option value="left">Left</option>
+        </select>
+      </div>
+      <div class="theme-control">
+        <label class="theme-label" for="themeSelect">Theme</label>
+        <select class="theme-select" id="themeSelect">
+          <option value="system">System Default</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="cyberpunk">Cyberpunk</option>
+          <option value="retro-arcade">Retro Arcade</option>
+          <option value="twitch">Twitch Purple</option>
+          <option value="pastel">Pastel</option>
+          <option value="tangerine">Tangerine</option>
+          <option value="comfort-zone">Comfort Zone</option>
+          <option value="colorblind">Colorblind-Safe</option>
+        </select>
+      </div>
     </section>
 
     <div class="resize-handle" id="resizeHandle"></div>

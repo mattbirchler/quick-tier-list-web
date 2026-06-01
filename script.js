@@ -14,9 +14,10 @@ const state = {
     B: [],
     C: [],
     D: [],
+    F: [],
     unranked: []
   },
-  tierNames: { S: 'S', A: 'A', B: 'B', C: 'C', D: 'D' },
+  tierNames: { S: 'S', A: 'A', B: 'B', C: 'C', D: 'D', F: 'F' },
   isStreamerMode: false,
   tableWidth: 1152,
   theme: 'system', // 'system', 'light', 'dark', 'cyberpunk'
@@ -45,7 +46,7 @@ const elements = {
   exportBtn: null,
   resetRankingsBtn: null,
   resetEverythingBtn: null,
-  streamerModeBtn: null,
+  alignSelect: null,
   themeSelect: null,
   resizeHandle: null,
   modalOverlay: null,
@@ -81,7 +82,7 @@ function cacheElements() {
   elements.exportBtn = document.getElementById('exportBtn');
   elements.resetRankingsBtn = document.getElementById('resetRankingsBtn');
   elements.resetEverythingBtn = document.getElementById('resetEverythingBtn');
-  elements.streamerModeBtn = document.getElementById('streamerModeBtn');
+  elements.alignSelect = document.getElementById('alignSelect');
   elements.themeSelect = document.getElementById('themeSelect');
   elements.resizeHandle = document.getElementById('resizeHandle');
   elements.modalOverlay = document.getElementById('modalOverlay');
@@ -116,6 +117,14 @@ function loadFromStorage() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
       state.theme = savedTheme;
+    }
+
+    // Migration: ensure newer tiers exist for data saved before they were added
+    if (!Array.isArray(state.tierData.F)) {
+      state.tierData.F = [];
+    }
+    if (!state.tierNames.F) {
+      state.tierNames.F = 'F';
     }
   } catch (error) {
     console.error('Error loading from localStorage:', error);
@@ -190,7 +199,7 @@ function render() {
 }
 
 function renderTiers() {
-  const tiers = ['S', 'A', 'B', 'C', 'D'];
+  const tiers = ['S', 'A', 'B', 'C', 'D', 'F'];
 
   elements.tierTable.innerHTML = tiers.map(tier => `
     <div class="tier-row" data-tier="${tier}">
@@ -281,7 +290,7 @@ function attachImageItemListeners(container) {
 function updateContainerStyles() {
   elements.container.style.width = `${state.tableWidth}px`;
   elements.container.classList.toggle('streamer-mode', state.isStreamerMode);
-  elements.streamerModeBtn.textContent = state.isStreamerMode ? 'Exit Streamer Mode' : 'Streamer Mode';
+  elements.alignSelect.value = state.isStreamerMode ? 'left' : 'center';
 }
 
 function updateButtonStates() {
@@ -323,7 +332,7 @@ function attachEventListeners() {
   elements.exportBtn.addEventListener('click', exportAsImage);
   elements.resetRankingsBtn.addEventListener('click', resetRankings);
   elements.resetEverythingBtn.addEventListener('click', showResetModal);
-  elements.streamerModeBtn.addEventListener('click', toggleStreamerMode);
+  elements.alignSelect.addEventListener('change', handleAlignChange);
 
   // Modal buttons
   elements.modalCancelBtn.addEventListener('click', hideModal);
@@ -454,26 +463,53 @@ function clearDropIndicators() {
   document.querySelectorAll('.image-item').forEach(item => {
     item.classList.remove('drop-left', 'drop-right');
   });
+  document.querySelectorAll('.tier-content').forEach(content => {
+    content.classList.remove('drag-over', 'drag-over-full');
+  });
+}
+
+// The F tier holds a single item. A drop is allowed only when F is empty,
+// or when the item already lives in F (re-dropping its own occupant).
+const TIER_CAPACITY = { F: 1 };
+
+function canDropInTier(toTier, fromTier) {
+  const capacity = TIER_CAPACITY[toTier];
+  if (capacity === undefined || fromTier === toTier) return true;
+  return state.tierData[toTier].length < capacity;
 }
 
 function handleDragOver(e) {
   e.preventDefault();
+  const toTier = e.currentTarget.dataset.tier;
+
+  if (state.draggedItem && !canDropInTier(toTier, state.draggedFromTier)) {
+    e.currentTarget.classList.add('drag-over-full');
+    e.dataTransfer.dropEffect = 'none';
+    return;
+  }
+
   e.currentTarget.classList.add('drag-over');
 }
 
 function handleDragLeave(e) {
-  e.currentTarget.classList.remove('drag-over');
+  e.currentTarget.classList.remove('drag-over', 'drag-over-full');
 }
 
 function handleDrop(e) {
   e.preventDefault();
-  e.currentTarget.classList.remove('drag-over');
+  e.currentTarget.classList.remove('drag-over', 'drag-over-full');
   clearDropIndicators();
 
   if (!state.draggedItem) return;
 
   const toTier = e.currentTarget.dataset.tier;
   const fromTier = state.draggedFromTier;
+
+  // Enforce single-slot tiers (F): leave the item where it was.
+  if (!canDropInTier(toTier, fromTier)) {
+    state.dropTarget = null;
+    return;
+  }
 
   // Calculate insertion index based on drop target
   let insertIndex = -1;
@@ -709,6 +745,7 @@ function resetRankings() {
     ...state.tierData.B,
     ...state.tierData.C,
     ...state.tierData.D,
+    ...state.tierData.F,
     ...state.tierData.unranked
   ];
 
@@ -718,6 +755,7 @@ function resetRankings() {
     B: [],
     C: [],
     D: [],
+    F: [],
     unranked: allItems
   };
 
@@ -753,6 +791,7 @@ function confirmResetEverything() {
     B: [],
     C: [],
     D: [],
+    F: [],
     unranked: []
   };
   state.tableWidth = 1152;
@@ -851,11 +890,11 @@ function hideLightbox() {
 }
 
 // ========================================
-// Streamer Mode
+// Alignment
 // ========================================
 
-function toggleStreamerMode() {
-  state.isStreamerMode = !state.isStreamerMode;
+function handleAlignChange(e) {
+  state.isStreamerMode = e.target.value === 'left';
   saveStreamerMode();
   updateContainerStyles();
 }
@@ -904,7 +943,7 @@ function handleResizeStart(e) {
 // ========================================
 
 async function exportAsImage() {
-  const tiers = ['S', 'A', 'B', 'C', 'D'];
+  const tiers = ['S', 'A', 'B', 'C', 'D', 'F'];
   const effectiveTheme = getEffectiveTheme();
 
   // Theme-specific colors
@@ -918,7 +957,8 @@ async function exportAsImage() {
         A: '#ea580c',
         B: '#ca8a04',
         C: '#16a34a',
-        D: '#2563eb'
+        D: '#2563eb',
+        F: '#7c3aed'
       }
     },
     dark: {
@@ -930,7 +970,8 @@ async function exportAsImage() {
         A: '#ea580c',
         B: '#ca8a04',
         C: '#16a34a',
-        D: '#2563eb'
+        D: '#2563eb',
+        F: '#7c3aed'
       }
     },
     cyberpunk: {
@@ -942,7 +983,8 @@ async function exportAsImage() {
         A: '#ff7700',
         B: '#ffdd00',
         C: '#00ff77',
-        D: '#00aaff'
+        D: '#00aaff',
+        F: '#aa00ff'
       }
     },
     'retro-arcade': {
@@ -954,7 +996,8 @@ async function exportAsImage() {
         A: '#ff9f00',
         B: '#dfff00',
         C: '#00ff60',
-        D: '#009fff'
+        D: '#009fff',
+        F: '#9f00ff'
       }
     },
     twitch: {
@@ -966,7 +1009,8 @@ async function exportAsImage() {
         A: '#bf94ff',
         B: '#00c8af',
         C: '#1f69ff',
-        D: '#eb0400'
+        D: '#eb0400',
+        F: '#3d3d5c'
       }
     },
     pastel: {
@@ -978,7 +1022,8 @@ async function exportAsImage() {
         A: '#ffc98b',
         B: '#fff59d',
         C: '#98fb98',
-        D: '#a0d2ff'
+        D: '#a0d2ff',
+        F: '#c9b1ff'
       }
     },
     tangerine: {
@@ -990,7 +1035,8 @@ async function exportAsImage() {
         A: '#e58500',
         B: '#e5a030',
         C: '#e5b860',
-        D: '#a88860'
+        D: '#a88860',
+        F: '#80705f'
       }
     },
     'comfort-zone': {
@@ -1002,7 +1048,8 @@ async function exportAsImage() {
         A: '#8b6ba8',
         B: '#6ab8b8',
         C: '#e8a850',
-        D: '#b8a0d0'
+        D: '#b8a0d0',
+        F: '#8868a0'
       }
     },
     colorblind: {
@@ -1014,7 +1061,8 @@ async function exportAsImage() {
         A: '#33bbee',
         B: '#ee7733',
         C: '#ee3377',
-        D: '#999999'
+        D: '#999999',
+        F: '#555555'
       }
     }
   };
