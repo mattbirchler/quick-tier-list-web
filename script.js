@@ -21,10 +21,25 @@ const state = {
   isStreamerMode: false,
   tableWidth: 1152,
   theme: 'system', // 'system', 'light', 'dark', 'cyberpunk'
-  draggedItem: null,
-  draggedFromTier: null,
-  dropTarget: null, // { id, position: 'left' | 'right' }
   selectedItemIds: []
+};
+
+// Pointer-drag controller state. We render our own drag ghost in the DOM
+// (rather than relying on the browser's native drag image) so the dragged
+// item stays visible to anyone watching a screen share, and so we can give
+// it real spring physics.
+const drag = {
+  active: false,
+  candidate: null,   // pending drag: { id, fromTier, sourceEl, imgSrc, startX, startY, offsetX, offsetY, grabW }
+  ghost: null,
+  dropZone: null,    // tier name, 'unranked', or null
+  dropTarget: null,  // { id, position: 'left' | 'right' }
+  ghostX: 0, ghostY: 0,   // current rendered center
+  targetX: 0, targetY: 0, // pointer-following target center
+  lastX: 0,
+  rotation: 0,
+  rafId: null,
+  suppressClick: false
 };
 
 // ========================================
@@ -223,14 +238,8 @@ function renderTiers() {
     input.addEventListener('input', handleTierNameChange);
   });
 
-  // Attach drag/drop listeners to tier contents
-  elements.tierTable.querySelectorAll('.tier-content').forEach(content => {
-    content.addEventListener('dragover', handleDragOver);
-    content.addEventListener('dragleave', handleDragLeave);
-    content.addEventListener('drop', handleDrop);
-  });
-
-  // Attach image item listeners
+  // Attach image item listeners (drop targets are resolved by the
+  // pointer-drag controller via hit-testing, not native drag events).
   attachImageItemListeners(elements.tierTable);
 
   // Update tier label widths
@@ -262,8 +271,8 @@ function renderItems() {
 
 function createImageItemHTML(item, tier) {
   return `
-    <div class="image-item" draggable="true" data-id="${item.id}" data-tier="${tier}">
-      <img src="${item.src}" alt="${item.name}">
+    <div class="image-item" data-id="${item.id}" data-tier="${tier}">
+      <img src="${item.src}" alt="${item.name}" draggable="false">
       <button class="delete-btn" data-id="${item.id}" data-tier="${tier}" aria-label="Remove ${item.name}">×</button>
     </div>
   `;
@@ -271,10 +280,7 @@ function createImageItemHTML(item, tier) {
 
 function attachImageItemListeners(container) {
   container.querySelectorAll('.image-item').forEach(item => {
-    item.addEventListener('dragstart', handleImageDragStart);
-    item.addEventListener('dragend', handleImageDragEnd);
-    item.addEventListener('dragover', handleImageDragOver);
-    item.addEventListener('dragleave', handleImageDragLeave);
+    item.addEventListener('pointerdown', handleItemPointerDown);
 
     // Click to select unranked items for lightbox preview
     if (item.dataset.tier === 'unranked') {
@@ -316,6 +322,7 @@ function attachEventListeners() {
 
   // Drop zone click
   elements.itemsDropZone.addEventListener('click', (e) => {
+    if (drag.suppressClick) return; // ignore the click that ends a drag
     if (e.target === elements.itemsDropZone || e.target === elements.dropPlaceholder || e.target.closest('.drop-placeholder')) {
       elements.fileInput.click();
     }
@@ -375,6 +382,7 @@ function attachEventListeners() {
 
   // Click outside items to deselect
   document.addEventListener('click', (e) => {
+    if (drag.suppressClick) return; // ignore the click that ends a drag
     if (state.selectedItemIds.length > 0 && !e.target.closest('.image-item') && !e.target.closest('.lightbox-overlay')) {
       clearSelection();
     }
@@ -399,64 +407,219 @@ function handleTierNameChange(e) {
 // Image Drag & Drop
 // ========================================
 
-function handleImageDragStart(e) {
-  const item = e.target.closest('.image-item');
-  state.draggedItem = item.dataset.id;
-  state.draggedFromTier = item.dataset.tier;
-  item.classList.add('dragging');
-
-  // Random rotation between 2-5 degrees, left or right
-  const rotation = (2 + Math.random() * 3) * (Math.random() < 0.5 ? -1 : 1);
-  item.style.transform = `scale(1.12) rotate(${rotation}deg)`;
-
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', item.dataset.id);
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function handleImageDragEnd(e) {
+// A drag begins as a "candidate" on pointerdown and only becomes an active
+// drag once the pointer moves past a small threshold, so taps still register
+// as clicks (selection / lightbox).
+function handleItemPointerDown(e) {
+  // Primary button only for mice; ignore the delete button.
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (e.target.closest('.delete-btn')) return;
+
   const item = e.target.closest('.image-item');
-  if (item) {
-    item.classList.remove('dragging');
-    item.style.transform = '';
+  if (!item) return;
+
+  drag.suppressClick = false;
+  const rect = item.getBoundingClientRect();
+  drag.candidate = {
+    id: item.dataset.id,
+    fromTier: item.dataset.tier,
+    sourceEl: item,
+    imgSrc: item.querySelector('img') ? item.querySelector('img').src : '',
+    startX: e.clientX,
+    startY: e.clientY,
+    // Offset of the pointer from the item's center, so the grab point stays put.
+    offsetX: e.clientX - (rect.left + rect.width / 2),
+    offsetY: e.clientY - (rect.top + rect.height / 2),
+    grabW: rect.width
+  };
+
+  window.addEventListener('pointermove', handleDragPointerMove);
+  window.addEventListener('pointerup', handleDragPointerUp);
+  window.addEventListener('pointercancel', handleDragPointerUp);
+}
+
+function handleDragPointerMove(e) {
+  if (!drag.candidate) return;
+
+  if (!drag.active) {
+    const dx = e.clientX - drag.candidate.startX;
+    const dy = e.clientY - drag.candidate.startY;
+    if (Math.hypot(dx, dy) < 6) return; // below threshold: still a potential click
+    startDrag();
   }
-  state.draggedItem = null;
-  state.draggedFromTier = null;
-  state.dropTarget = null;
+
+  drag.targetX = e.clientX - drag.candidate.offsetX;
+  drag.targetY = e.clientY - drag.candidate.offsetY;
+  updateDropTargetFromPoint(e.clientX, e.clientY);
+}
+
+function startDrag() {
+  const c = drag.candidate;
+  drag.active = true;
+  document.body.classList.add('dragging-active');
+  c.sourceEl.classList.add('drag-source');
+
+  const ghost = document.createElement('div');
+  ghost.className = 'drag-ghost';
+  ghost.style.width = `${c.grabW}px`;
+  const img = document.createElement('img');
+  img.src = c.imgSrc;
+  img.draggable = false;
+  ghost.appendChild(img);
+  document.body.appendChild(ghost);
+  drag.ghost = ghost;
+
+  // Seed positions at the current grab point so it doesn't jump.
+  drag.ghostX = drag.targetX = c.startX - c.offsetX;
+  drag.ghostY = drag.targetY = c.startY - c.offsetY;
+  drag.lastX = drag.ghostX;
+  drag.rotation = 0;
+
+  drag.rafId = requestAnimationFrame(animateGhost);
+}
+
+function animateGhost() {
+  if (!drag.active) return;
+
+  if (prefersReducedMotion()) {
+    drag.ghostX = drag.targetX;
+    drag.ghostY = drag.targetY;
+    drag.rotation = 0;
+  } else {
+    // Spring follow: ease the ghost toward the pointer each frame.
+    drag.ghostX += (drag.targetX - drag.ghostX) * 0.28;
+    drag.ghostY += (drag.targetY - drag.ghostY) * 0.28;
+    // Tilt based on horizontal velocity for a physical, lively feel.
+    const vx = drag.ghostX - drag.lastX;
+    drag.lastX = drag.ghostX;
+    const targetRot = Math.max(-14, Math.min(14, vx * 0.9));
+    drag.rotation += (targetRot - drag.rotation) * 0.2;
+  }
+
+  renderGhost();
+  drag.rafId = requestAnimationFrame(animateGhost);
+}
+
+function renderGhost() {
+  const g = drag.ghost;
+  if (!g) return;
+  const w = g.offsetWidth;
+  const h = g.offsetHeight;
+  g.style.transform =
+    `translate(${drag.ghostX - w / 2}px, ${drag.ghostY - h / 2}px) scale(1.12) rotate(${drag.rotation}deg)`;
+}
+
+// Resolve which tier (or the unranked zone) the pointer is over, and where
+// within it the item would be inserted, then reflect that with indicators.
+function updateDropTargetFromPoint(x, y) {
+  clearDropIndicators();
+  drag.dropZone = null;
+  drag.dropTarget = null;
+
+  const el = document.elementFromPoint(x, y); // ghost is pointer-events:none
+  if (!el) return;
+
+  const tierContent = el.closest('.tier-content');
+  const itemsZone = el.closest('.items-drop-zone');
+
+  if (tierContent) {
+    const toTier = tierContent.dataset.tier;
+    if (!canDropInTier(toTier, drag.candidate.fromTier)) {
+      tierContent.classList.add('drag-over-full');
+      return; // blocked: leave dropZone null
+    }
+    drag.dropZone = toTier;
+    tierContent.classList.add('drag-over');
+    markInsertPosition(el, x);
+  } else if (itemsZone) {
+    drag.dropZone = 'unranked';
+    itemsZone.classList.add('drag-over');
+    markInsertPosition(el, x);
+  }
+}
+
+function markInsertPosition(el, x) {
+  const overItem = el.closest('.image-item');
+  if (!overItem || overItem.dataset.id === drag.candidate.id) return;
+  const rect = overItem.getBoundingClientRect();
+  const position = x < rect.left + rect.width / 2 ? 'left' : 'right';
+  overItem.classList.add(`drop-${position}`);
+  drag.dropTarget = { id: overItem.dataset.id, position };
+}
+
+function handleDragPointerUp(e) {
+  window.removeEventListener('pointermove', handleDragPointerMove);
+  window.removeEventListener('pointerup', handleDragPointerUp);
+  window.removeEventListener('pointercancel', handleDragPointerUp);
+
+  if (!drag.active) {
+    drag.candidate = null; // was a tap/click; selection handler will run
+    return;
+  }
+
+  finishDrag(e.clientX, e.clientY);
+}
+
+function finishDrag(dropX, dropY) {
+  const c = drag.candidate;
+  const targetTier = drag.dropZone;
+  const dropTarget = drag.dropTarget;
+
+  if (drag.rafId) cancelAnimationFrame(drag.rafId);
+  drag.rafId = null;
+
+  if (drag.ghost && drag.ghost.parentNode) {
+    drag.ghost.parentNode.removeChild(drag.ghost);
+  }
+  if (c && c.sourceEl) {
+    c.sourceEl.classList.remove('drag-source');
+  }
+
+  if (targetTier) {
+    let insertIndex = -1;
+    if (dropTarget) {
+      const targetIndex = state.tierData[targetTier].findIndex(img => img.id === dropTarget.id);
+      if (targetIndex !== -1) {
+        insertIndex = dropTarget.position === 'left' ? targetIndex : targetIndex + 1;
+      }
+    }
+    moveItem(c.id, c.fromTier, targetTier, insertIndex);
+    spawnRipple(targetTier, dropX, dropY);
+  }
+
+  // A synthetic click follows pointerup; suppress it so a drag doesn't also
+  // toggle selection or open the file picker. The click is dispatched before
+  // a 0ms timer, so clearing it here cleans up without lingering.
+  drag.suppressClick = true;
+  setTimeout(() => { drag.suppressClick = false; }, 0);
+  drag.active = false;
+  drag.candidate = null;
+  drag.ghost = null;
+  drag.dropZone = null;
+  drag.dropTarget = null;
+  document.body.classList.remove('dragging-active');
   clearDropIndicators();
 }
 
-function handleImageDragOver(e) {
-  e.preventDefault();
-  e.stopPropagation();
+function spawnRipple(zone, clientX, clientY) {
+  if (prefersReducedMotion()) return;
 
-  if (!state.draggedItem) return;
+  const container = zone === 'unranked'
+    ? elements.itemsDropZone
+    : elements.tierTable.querySelector(`.tier-content[data-tier="${zone}"]`);
+  if (!container) return;
 
-  const item = e.currentTarget;
-  const itemId = item.dataset.id;
-
-  // Don't show indicator on the item being dragged
-  if (itemId === state.draggedItem) return;
-
-  const rect = item.getBoundingClientRect();
-  const midpoint = rect.left + rect.width / 2;
-  const position = e.clientX < midpoint ? 'left' : 'right';
-
-  // Only update if changed
-  if (!state.dropTarget || state.dropTarget.id !== itemId || state.dropTarget.position !== position) {
-    clearDropIndicators();
-    state.dropTarget = { id: itemId, position };
-    item.classList.add(`drop-${position}`);
-  }
-}
-
-function handleImageDragLeave(e) {
-  const item = e.currentTarget;
-  item.classList.remove('drop-left', 'drop-right');
-
-  // Clear drop target if leaving this item
-  if (state.dropTarget && state.dropTarget.id === item.dataset.id) {
-    state.dropTarget = null;
-  }
+  const rect = container.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  ripple.className = 'tier-ripple';
+  ripple.style.left = `${clientX - rect.left}px`;
+  ripple.style.top = `${clientY - rect.top}px`;
+  container.appendChild(ripple);
+  ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
 }
 
 function clearDropIndicators() {
@@ -478,52 +641,8 @@ function canDropInTier(toTier, fromTier) {
   return state.tierData[toTier].length < capacity;
 }
 
-function handleDragOver(e) {
-  e.preventDefault();
-  const toTier = e.currentTarget.dataset.tier;
-
-  if (state.draggedItem && !canDropInTier(toTier, state.draggedFromTier)) {
-    e.currentTarget.classList.add('drag-over-full');
-    e.dataTransfer.dropEffect = 'none';
-    return;
-  }
-
-  e.currentTarget.classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-  e.currentTarget.classList.remove('drag-over', 'drag-over-full');
-}
-
-function handleDrop(e) {
-  e.preventDefault();
-  e.currentTarget.classList.remove('drag-over', 'drag-over-full');
-  clearDropIndicators();
-
-  if (!state.draggedItem) return;
-
-  const toTier = e.currentTarget.dataset.tier;
-  const fromTier = state.draggedFromTier;
-
-  // Enforce single-slot tiers (F): leave the item where it was.
-  if (!canDropInTier(toTier, fromTier)) {
-    state.dropTarget = null;
-    return;
-  }
-
-  // Calculate insertion index based on drop target
-  let insertIndex = -1;
-  if (state.dropTarget) {
-    const targetIndex = state.tierData[toTier].findIndex(img => img.id === state.dropTarget.id);
-    if (targetIndex !== -1) {
-      insertIndex = state.dropTarget.position === 'left' ? targetIndex : targetIndex + 1;
-    }
-  }
-
-  moveItem(state.draggedItem, fromTier, toTier, insertIndex);
-  state.dropTarget = null;
-}
-
+// Native drag events are used only for files dropped in from outside the
+// browser (uploads). Item reordering is handled by the pointer controller.
 function handleItemsAreaDragOver(e) {
   e.preventDefault();
   e.stopPropagation();
@@ -541,25 +660,7 @@ function handleItemsAreaDrop(e) {
   e.preventDefault();
   e.stopPropagation();
   elements.itemsDropZone.classList.remove('drag-over');
-  clearDropIndicators();
 
-  // Check if dropping an existing item
-  if (state.draggedItem) {
-    // Calculate insertion index based on drop target
-    let insertIndex = -1;
-    if (state.dropTarget) {
-      const targetIndex = state.tierData.unranked.findIndex(img => img.id === state.dropTarget.id);
-      if (targetIndex !== -1) {
-        insertIndex = state.dropTarget.position === 'left' ? targetIndex : targetIndex + 1;
-      }
-    }
-
-    moveItem(state.draggedItem, state.draggedFromTier, 'unranked', insertIndex);
-    state.dropTarget = null;
-    return;
-  }
-
-  // Handle file drops
   const files = e.dataTransfer.files;
   if (files && files.length > 0) {
     processFiles(files);
@@ -808,6 +909,8 @@ function confirmResetEverything() {
 function handleItemSelect(e) {
   // Don't select if clicking delete button
   if (e.target.closest('.delete-btn')) return;
+  // Ignore the click that fires at the end of a drag.
+  if (drag.suppressClick) return;
 
   const item = e.currentTarget;
   const id = item.dataset.id;
