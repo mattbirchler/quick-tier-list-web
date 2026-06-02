@@ -1731,6 +1731,24 @@ body.dragging-active * {
 }
 
 /* ========================================
+   Firefox Static Aurora Fallback
+   Firefox struggles to repaint the large
+   animated color-mix() gradient layers,
+   causing visible flashing. Freeze the
+   aurora into a static gradient there.
+   (@-moz-document url-prefix() targets
+   Firefox only.)
+   ======================================== */
+
+@-moz-document url-prefix() {
+  body::before,
+  body::after {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+/* ========================================
    Reduced Motion / Transparency
    ======================================== */
 
